@@ -1,0 +1,81 @@
+version: '3.8'
+
+services:
+  # MongoDB
+  mongodb:
+    image: mongo:7
+    container_name: mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
+    networks:
+      - backendnet
+
+  # Redis
+  redis:
+    image: redis:7
+    container_name: redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - backendnet
+
+  # Elasticsearch
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.12.1
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - ELASTIC_PASSWORD=changeme
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - "9200:9200"
+    networks:
+      - backendnet
+
+  # Backend Node.js
+  backend:
+    build:
+      context: .
+      dockerfile: dockerFile.dev
+    container_name: backend
+    restart: unless-stopped
+    ports:
+      - "4000:4000"  # Nginx sẽ proxy tới cổng này
+    env_file:
+      - .env.dev
+    depends_on:
+      - mongodb
+      - redis
+      - elasticsearch
+    networks:
+      - backendnet
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"  # Nginx sẽ lắng nghe cổng 80
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - backend
+    networks:
+      - backendnet
+
+volumes:
+  mongo_data:
+  redis_data:
+  es_data:
+
+networks:
+  backendnet:
+    driver: bridge
