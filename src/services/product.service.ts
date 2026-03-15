@@ -3,6 +3,8 @@ import mongoose from "mongoose";
 import CategoryModel from "../models/category-model.mongo";
 import ProductModel from "../models/product-model.mongo";
 import { Contacts } from "../shared/contacts";
+import { IProduct, IProductVariant } from "../shared/models/product-model";
+import { UserRole } from "../shared/models/user-model";
 import { getArray, setArray, deleteKeysByPattern } from "../cache/redisUtils";
 import { notificationService } from "./notification.service";
 import { getCategoryAndDescendantIds } from "../utils/category-tree";
@@ -10,9 +12,80 @@ import { getCategoryAndDescendantIds } from "../utils/category-tree";
 const STATUS_EVALUATION = Contacts.Status.Evaluation;
 const LIMIT = 20;
 
+interface AuthenticatedUser {
+    id: string;
+    role: UserRole;
+    email: string;
+}
+
+type RequestWithUser = Request & {
+    user?: AuthenticatedUser;
+};
+
+type ProductListQuery = {
+    page?: string;
+    sort?: string;
+    idCategory?: string;
+    minPrice?: string;
+    maxPrice?: string;
+};
+
+type ProductListOptions = {
+    includeHidden: boolean;
+};
+
+type ProductWithComputedPrice = IProduct & {
+    computedPrice: number | null;
+};
+
+interface MongoDuplicateKeyError {
+    keyPattern?: Record<string, number>;
+    message?: string;
+}
+
+const isMongoDuplicateSkuError = (
+    error: unknown
+): error is MongoDuplicateKeyError => {
+    if (!error || typeof error !== "object") {
+        return false;
+    }
+
+    const maybeError = error as MongoDuplicateKeyError;
+    return !!maybeError.keyPattern && "variants.sku" in maybeError.keyPattern;
+};
+
+const getVariantEffectivePrice = (variant: IProductVariant): number =>
+    variant.salePrice ?? variant.price;
+
+const getProductEffectivePrice = (product: IProduct): number | null => {
+    if (!product.variants || product.variants.length === 0) {
+        return null;
+    }
+
+    return product.variants.reduce<number | null>((minPrice, variant) => {
+        const price = getVariantEffectivePrice(variant);
+        if (minPrice === null) {
+            return price;
+        }
+        return Math.min(minPrice, price);
+    }, null);
+};
+
+const getAuthenticatedUser = (req: Request): AuthenticatedUser | null => {
+    const requestWithUser = req as RequestWithUser;
+    if (!requestWithUser.user) {
+        return null;
+    }
+    return requestWithUser.user;
+};
+
 export const addProduct = async (req: Request, res: Response) => {
     try {
-        const userId = (req as any).user.id;
+        const user = getAuthenticatedUser(req);
+        if (!user) {
+            return res.status(401).json({ message: "Authentication required" });
+        }
+        const userId = user.id;
         const {
             title,
             brand,
@@ -27,7 +100,7 @@ export const addProduct = async (req: Request, res: Response) => {
 
         const category = await CategoryModel.findById(categoryId);
         if (!category) {
-            res.status(400).json({
+            return res.status(400).json({
                 success: false,
                 message: "Category does not exist",
             });
@@ -63,28 +136,42 @@ export const addProduct = async (req: Request, res: Response) => {
             message: "Add product successfully",
             data: savedProduct,
         });
-    } catch (error: any) {
-        if (error.keyPattern && error.keyPattern["variants.sku"]) {
+    } catch (error: unknown) {
+        if (isMongoDuplicateSkuError(error)) {
             return res.status(409).json({
                 // 409 Conflict
                 success: false,
                 message: "SKU already exists in another product variant.",
             });
         }
+
+        const errorMessage =
+            error instanceof Error ? error.message : "Internal Server Error";
         return res.status(500).json({
             success: false,
             message: "Internal Server Error",
-            error: error.message,
+            error: errorMessage,
         });
     }
 };
 
 export const getAllProducts = async (req: Request, res: Response) => {
+    return getAllProductsByScope(req, res, { includeHidden: false });
+};
+
+export const getAllProductsAdmin = async (req: Request, res: Response) => {
+    return getAllProductsByScope(req, res, { includeHidden: true });
+};
+
+const getAllProductsByScope = async (
+    req: Request,
+    res: Response,
+    options: ProductListOptions
+) => {
     try {
-        const { page, sort, idCategory, minPrice, maxPrice } = req.query;
-        const idCategoryValue = Array.isArray(idCategory)
-            ? idCategory[0]
-            : idCategory;
+        const query = req.query as ProductListQuery;
+        const { page, sort, idCategory, minPrice, maxPrice } = query;
+        const idCategoryValue = idCategory;
         if (page && isNaN(Number(page))) {
             return res.status(400).json({ message: "Invalid page number" });
         }
@@ -96,13 +183,18 @@ export const getAllProducts = async (req: Request, res: Response) => {
         const pageNum = Math.max(Number(page) || 1, 1);
         const skip = (Number(pageNum) - 1) * Number(limitNum);
 
-        const cacheKey = `products:base_mapped:${idCategoryValue || "all"}:sort:${
+        const visibilityScope = options.includeHidden ? "all_status" : "public";
+        const cacheKey = `products:base_mapped:${visibilityScope}:${idCategoryValue || "all"}:sort:${
             sort || "default"
         }`;
-        let processProduct = await getArray<any>(cacheKey);
+        let processProduct = await getArray<ProductWithComputedPrice>(cacheKey);
 
         if (!processProduct) {
-            const filter: any = { isHide: STATUS_EVALUATION.PUBLIC };
+            const filter: { isHide?: number; categoryId?: { $in: string[] } } =
+                {};
+            if (!options.includeHidden) {
+                filter.isHide = STATUS_EVALUATION.PUBLIC;
+            }
             if (idCategoryValue) {
                 const categoryIds = await getCategoryAndDescendantIds(
                     idCategoryValue.toString()
@@ -110,20 +202,27 @@ export const getAllProducts = async (req: Request, res: Response) => {
                 filter.categoryId = { $in: categoryIds };
             }
 
-            const products = await ProductModel.find(filter).lean();
+            const products = await ProductModel.find(filter).lean<IProduct[]>();
 
-            processProduct = products.map((e) => e);
+            processProduct = products.map((product) => ({
+                ...product,
+                computedPrice: getProductEffectivePrice(product),
+            }));
 
             if (sort === Contacts.Sort.PRICE_ASC) {
                 processProduct.sort(
-                    (a, b) => (a.salePricePre || 0) - (b.salePricePre || 0)
+                    (a, b) => (a.computedPrice ?? 0) - (b.computedPrice ?? 0)
                 );
             } else if (sort === Contacts.Sort.PRICE_DESC) {
                 processProduct.sort(
-                    (a, b) => (b.salePricePre || 0) - (a.salePricePre || 0)
+                    (a, b) => (b.computedPrice ?? 0) - (a.computedPrice ?? 0)
                 );
             }
-            await setArray<any>(cacheKey, processProduct, 3600);
+            await setArray<ProductWithComputedPrice>(
+                cacheKey,
+                processProduct,
+                3600
+            );
         } else {
             console.log("CACHE HIT - products base mapped");
         }
@@ -131,20 +230,22 @@ export const getAllProducts = async (req: Request, res: Response) => {
         if (minPrice) {
             processProduct = processProduct.filter(
                 (p) =>
-                    p.salePricePre !== null &&
-                    p.salePricePre >= Number(minPrice)
+                    p.computedPrice !== null &&
+                    p.computedPrice >= Number(minPrice)
             );
         }
         if (maxPrice) {
             processProduct = processProduct.filter(
                 (p) =>
-                    p.salePricePre !== null &&
-                    p.salePricePre <= Number(maxPrice)
+                    p.computedPrice !== null &&
+                    p.computedPrice <= Number(maxPrice)
             );
         }
 
         const total = processProduct.length;
-        const pageData = processProduct.slice(skip, skip + limitNum);
+        const pageData = processProduct
+            .slice(skip, skip + limitNum)
+            .map(({ computedPrice, ...product }) => product);
         res.status(200).json({
             data: pageData,
             pagination: {
@@ -183,7 +284,11 @@ export const getProductById = async (req: Request, res: Response) => {
 export const updateProduct = async (req: Request, res: Response) => {
     try {
         const productId = req.params.id;
-        const userId = (req as any).user.id;
+        const user = getAuthenticatedUser(req);
+        if (!user) {
+            return res.status(401).json({ message: "Authentication required" });
+        }
+        const userId = user.id;
 
         if (!mongoose.isValidObjectId(productId)) {
             return res.status(400).json({ message: "Invalid product id" });
@@ -221,7 +326,11 @@ export const updateProduct = async (req: Request, res: Response) => {
 export const changeProductStatus = async (req: Request, res: Response) => {
     try {
         const productId = req.params.id;
-        const userId = (req as any).user.id;
+        const user = getAuthenticatedUser(req);
+        if (!user) {
+            return res.status(401).json({ message: "Authentication required" });
+        }
+        const userId = user.id;
 
         if (!mongoose.isValidObjectId(productId)) {
             return res.status(400).json({ message: "Invalid product id" });
