@@ -15,6 +15,7 @@ interface SearchParams {
     query?: string;
     brand?: string;
     categoryId?: string;
+    categoryIds?: string[];
     specKey?: string;
     specValue?: string;
     minPrice?: number;
@@ -116,6 +117,7 @@ export class ElasticSearch {
             query,
             brand,
             categoryId,
+            categoryIds,
             specKey,
             specValue,
             minPrice,
@@ -140,7 +142,11 @@ export class ElasticSearch {
 
         // Filters
         if (brand) filter.push({ term: { brand } });
-        if (categoryId) filter.push({ term: { categoryId } });
+        if (categoryIds?.length) {
+            filter.push({ terms: { categoryId: categoryIds } });
+        } else if (categoryId) {
+            filter.push({ term: { categoryId } });
+        }
 
         //Nest variants filter
         if (specKey || specValue) {

@@ -5,6 +5,7 @@ import ProductModel from "../models/product-model.mongo";
 import { Contacts } from "../shared/contacts";
 import { getArray, setArray, deleteKeysByPattern } from "../cache/redisUtils";
 import { notificationService } from "./notification.service";
+import { getCategoryAndDescendantIds } from "../utils/category-tree";
 
 const STATUS_EVALUATION = Contacts.Status.Evaluation;
 const LIMIT = 20;
@@ -47,7 +48,7 @@ export const addProduct = async (req: Request, res: Response) => {
         // 4. Lưu vào database
         const savedProduct = await newProduct.save();
 
-        await deleteKeysByPattern('products:base_mapped:*');
+        await deleteKeysByPattern("products:base_mapped:*");
 
         notificationService.pushNotification(
             "PRODUCT",
@@ -81,10 +82,13 @@ export const addProduct = async (req: Request, res: Response) => {
 export const getAllProducts = async (req: Request, res: Response) => {
     try {
         const { page, sort, idCategory, minPrice, maxPrice } = req.query;
+        const idCategoryValue = Array.isArray(idCategory)
+            ? idCategory[0]
+            : idCategory;
         if (page && isNaN(Number(page))) {
             return res.status(400).json({ message: "Invalid page number" });
         }
-        if (!mongoose.isValidObjectId(idCategory) && idCategory) {
+        if (idCategoryValue && !mongoose.isValidObjectId(idCategoryValue)) {
             return res.status(400).json({ message: "Invalid category id" });
         }
 
@@ -92,16 +96,18 @@ export const getAllProducts = async (req: Request, res: Response) => {
         const pageNum = Math.max(Number(page) || 1, 1);
         const skip = (Number(pageNum) - 1) * Number(limitNum);
 
-        const cacheKey = `products:base_mapped:${idCategory || "all"}:sort:${
+        const cacheKey = `products:base_mapped:${idCategoryValue || "all"}:sort:${
             sort || "default"
         }`;
         let processProduct = await getArray<any>(cacheKey);
 
         if (!processProduct) {
             const filter: any = { isHide: STATUS_EVALUATION.PUBLIC };
-            if (idCategory) {
-                // const listCategory = Array.isArray(idCategory) ? idCategory : [idCategory];
-                filter.categoryId = idCategory;
+            if (idCategoryValue) {
+                const categoryIds = await getCategoryAndDescendantIds(
+                    idCategoryValue.toString()
+                );
+                filter.categoryId = { $in: categoryIds };
             }
 
             const products = await ProductModel.find(filter).lean();
@@ -198,7 +204,7 @@ export const updateProduct = async (req: Request, res: Response) => {
             return res.status(404).json({ message: "Product not found" });
         }
 
-        await deleteKeysByPattern('products:base_mapped:*');
+        await deleteKeysByPattern("products:base_mapped:*");
         notificationService.pushNotification(
             "PRODUCT",
             "Product Update",
@@ -253,7 +259,7 @@ export const changeProductStatus = async (req: Request, res: Response) => {
         if (!updatedProduct) {
             return res.status(404).json({ message: "Product not found" });
         }
-        await deleteKeysByPattern('products:base_mapped:*');
+        await deleteKeysByPattern("products:base_mapped:*");
         notificationService.pushNotification(
             "PRODUCT",
             "Product Update",
