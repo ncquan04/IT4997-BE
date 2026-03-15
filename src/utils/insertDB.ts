@@ -1,86 +1,87 @@
 import connectDatabase from "./connectDB";
-import categoriesJson from "../../crawl/category.json";
-import mobileJson from "../../crawl/mobile.json"
-import tabletJson from "../../crawl/table.json"
-import laptopJson from "../../crawl/mac.json"
-import watchJson from "../../crawl/watch.json"
+import { readFileSync } from "fs";
+import { resolve } from "path";
 
-import CategoryModel from "../models/category-model.mongo"
-import ProductModel from "../models/product-model.mongo"
-import { ICategory } from "../shared/models/category-model";
-import { IProduct } from "../shared/models/product-model";
-import { writeFile } from "fs/promises";
-import {Schema, Types} from "mongoose"
+import CategoryModel from "../models/category-model.mongo";
+import ProductModel from "../models/product-model.mongo";
+import UserModel from "../models/user-model.mongo";
+import BranchModel from "../models/branch-model.mongo";
+import SupplierModel from "../models/supplier-model.mongo";
+import BranchInventoryModel from "../models/branch-inventory-model.mongo";
 
+const DATA_DIR = resolve(__dirname, "../../data");
 
-
-function transformcateID(data: IProduct[], categoryId: Types.ObjectId | string){
-    if (!Array.isArray(data)) {
-        console.warn(`⚠️ CẢNH BÁO: Data truyền vào không phải là mảng! (CategoryID: ${categoryId})`);
-        return [];
-    }
-    const newData = data.map((item) => {
-                return {
-                    ...item,
-                    categoryId: categoryId
-                };
-            });
-    return newData;
+function loadJSON(fileName: string) {
+    const filePath = resolve(DATA_DIR, fileName);
+    const raw = readFileSync(filePath, "utf-8");
+    return JSON.parse(raw);
 }
 
-async function processInsertData(cate: ICategory){
-    switch(cate.name){
-        case "Điện thoại":
-            const mobile = mobileJson as IProduct[];
-            const mobileData = transformcateID(mobile, cate._id);
-            await ProductModel.insertMany(mobileData);
-            // console.log(`  - Đã import ${mobileData.length} điện thoại`);   
-            break;
-        case "Tablet":
-            const tablet = tabletJson as IProduct[];
-            const tabletData = transformcateID(tablet, cate._id);
-            await ProductModel.insertMany(tabletData);
-            // console.log(`  - Đã import ${tabletData.length} tablet`);
-            break;
-        case "Đồng hồ":
-            const watch = watchJson as IProduct[];
-            const watchData = transformcateID(watch, cate._id);
-            await ProductModel.insertMany(watchData);
-            break;
-        case "Laptop":
-            const laptop = laptopJson as IProduct[];
-            const laptopData = transformcateID(laptop, cate._id);
-            await ProductModel.insertMany(laptopData);
-            break;
+async function insertBatch(model: any, data: any[], batchSize: number, label: string) {
+    let inserted = 0;
+    for (let i = 0; i < data.length; i += batchSize) {
+        const batch = data.slice(i, i + batchSize);
+        await model.insertMany(batch, { ordered: false });
+        inserted += batch.length;
+        if (inserted % (batchSize * 10) === 0 || inserted === data.length) {
+            console.log(`  [${label}] ${inserted}/${data.length} ...`);
+        }
     }
+    return inserted;
 }
 
 async function main() {
-    try{
-        // insert category data
-
+    try {
         await connectDatabase();
-        const categories = categoriesJson as ICategory[];
+        console.log("=== BẮT ĐẦU IMPORT DỮ LIỆU ===\n");
+
+        // 1. Categories
+        console.log("1. Xoá & import Categories...");
         await CategoryModel.deleteMany({});
-    
-        const categoriesRes = await CategoryModel.insertMany(categories);
-        // console.log("insert successffuly with", categories)
+        const categories = loadJSON("categories.json");
+        await CategoryModel.insertMany(categories);
+        console.log(`   ✅ Đã import ${categories.length} categories\n`);
 
-        // await writeFile("data/categories", new Buffer([categoriesRes]))
-
+        // 2. Products
+        console.log("2. Xoá & import Products...");
         await ProductModel.deleteMany({});
-        // await ProductModel.
+        const products = loadJSON("products.json");
+        await ProductModel.insertMany(products);
+        console.log(`   ✅ Đã import ${products.length} products\n`);
 
-        for (const cate of categoriesRes){
-            await processInsertData(cate)
-        }
+        // 3. Suppliers
+        console.log("3. Xoá & import Suppliers...");
+        await SupplierModel.deleteMany({});
+        const suppliers = loadJSON("suppliers.json");
+        await SupplierModel.insertMany(suppliers);
+        console.log(`   ✅ Đã import ${suppliers.length} suppliers\n`);
+
+        // 4. Users
+        console.log("4. Xoá & import Users...");
+        await UserModel.deleteMany({});
+        const users = loadJSON("users.json");
+        await UserModel.insertMany(users);
+        console.log(`   ✅ Đã import ${users.length} users\n`);
+
+        // 5. Branches
+        console.log("5. Xoá & import Branches...");
+        await BranchModel.deleteMany({});
+        const branches = loadJSON("branches.json");
+        await BranchModel.insertMany(branches);
+        console.log(`   ✅ Đã import ${branches.length} branches\n`);
+
+        // 6. Branch Inventory (lớn ~55MB, insert theo batch)
+        console.log("6. Xoá & import Branch Inventory (batch mode)...");
+        await BranchInventoryModel.deleteMany({});
+        const inventory = loadJSON("branch-inventory.json");
+        const inventoryCount = await insertBatch(BranchInventoryModel, inventory, 5000, "BranchInventory");
+        console.log(`   ✅ Đã import ${inventoryCount} branch inventory records\n`);
 
         console.log("=== THÀNH CÔNG: Đã import xong toàn bộ dữ liệu ===");
         process.exit(0);
-    
-    }catch(error){
-        console.log("Loi insert",error);
-        process.exit(1)
+    } catch (error) {
+        console.error("❌ Lỗi import:", error);
+        process.exit(1);
     }
 }
 

@@ -1,5 +1,5 @@
 import { Document, Model, model, Schema } from "mongoose";
-import { IProduct } from "../shared/models/product-model";
+import { IProduct, IProductVariant, ISpecItem } from "../shared/models/product-model";
 import { Contacts } from "../shared/contacts";
 import { categoryTableName } from "./category-model.mongo";
 
@@ -8,10 +8,6 @@ const ObjectId = Schema.Types.ObjectId;
 
 export const productTableName = "Product";
 
-export interface ISpecItem {
-    key: string;
-    value: string;
-}
 const specItemSchema = new Schema<ISpecItem>(
     {
         key: { type: String, required: true },
@@ -20,27 +16,16 @@ const specItemSchema = new Schema<ISpecItem>(
     { _id: false }
 );
 
-export interface IProductVariant {
-    version: string;
-    colorName: string;
-    hexcode: string;
-    images: string[];
-    quantity: number;
-    price: number;
-    salePrice?: number;
-    sku: string;
-}
-
 const productVariantSchema = new Schema<IProductVariant>({
-    version: { type: String, required: true },
-    colorName: { type: String, required: true },
-    hexcode: { type: String, required: true },
+    variantName: { type: String, required: true },
+    attributes: { type: [specItemSchema], default: [] },
     images: [{ type: String }],
-    quantity: { type: Number, default: 0 },
     price: { type: Number, required: true },
     salePrice: { type: Number },
+    costPrice: { type: Number, required: true },
     sku: { type: String, required: true, unique: true },
 });
+
 export interface ProductModelDocument extends IProduct, Document {
     _id: any;
 }
@@ -72,6 +57,7 @@ const productSchema = new Schema<ProductModelDocument>(
             default: STATUS_EVALUATION.HIDE,
         },
         rating: { type: Number, default: null },
+        warrantyPeriod: { type: Number },
     },
     { versionKey: false, timestamps: true }
 );

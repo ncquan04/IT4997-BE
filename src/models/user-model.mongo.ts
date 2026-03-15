@@ -1,7 +1,10 @@
 import { Document, Model, model, Schema } from "mongoose";
 import { IUser, UserRole } from "../shared/models/user-model";
+import { branchTableName } from "./branch-model.mongo";
 
 export const userTableName = "User";
+
+const ObjectId = Schema.Types.ObjectId;
 
 export interface UserModelDocument extends IUser, Document {
     _id: any;
@@ -23,6 +26,7 @@ const userSchema = new Schema<UserModelDocument>(
         address: { type: [String], default: [] },
         dateOfBirth: { type: Number },
         verifyCode: { type: String },
+        branchId: { type: ObjectId as any, ref: branchTableName },
     },
     { versionKey: false, timestamps: true }
 );
