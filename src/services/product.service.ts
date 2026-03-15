@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import mongoose from "mongoose";
 import CategoryModel from "../models/category-model.mongo";
 import ProductModel from "../models/product-model.mongo";
+import BranchInventoryModel from "../models/branch-inventory-model.mongo";
 import { Contacts } from "../shared/contacts";
 import { IProduct, IProductVariant } from "../shared/models/product-model";
 import { UserRole } from "../shared/models/user-model";
@@ -302,6 +303,85 @@ export const getProductById = async (req: Request, res: Response) => {
         res.status(200).json(product);
     } catch (error) {
         res.status(500).json({ message: "Failed to fetch product", error });
+    }
+};
+
+export const getProductAvailability = async (req: Request, res: Response) => {
+    try {
+        const productId = String(req.params.id);
+        const { variantId } = req.query;
+
+        if (!mongoose.isValidObjectId(productId)) {
+            return res.status(400).json({ message: "Invalid product id" });
+        }
+
+        if (
+            typeof variantId !== "string" ||
+            !mongoose.isValidObjectId(variantId)
+        ) {
+            return res.status(400).json({ message: "Invalid variant id" });
+        }
+
+        const productExists = await ProductModel.exists({ _id: productId });
+        if (!productExists) {
+            return res.status(404).json({ message: "Product not found" });
+        }
+
+        const branches = await BranchInventoryModel.aggregate([
+            {
+                $match: {
+                    productId: new mongoose.Types.ObjectId(productId),
+                    variantId: new mongoose.Types.ObjectId(variantId),
+                    quantity: { $gt: 0 },
+                },
+            },
+            {
+                $lookup: {
+                    from: "branches",
+                    localField: "branchId",
+                    foreignField: "_id",
+                    as: "branch",
+                },
+            },
+            {
+                $addFields: {
+                    branch: { $arrayElemAt: ["$branch", 0] },
+                },
+            },
+            {
+                $match: {
+                    "branch.isActive": true,
+                },
+            },
+            {
+                $project: {
+                    _id: 0,
+                    branchId: "$branch._id",
+                    name: "$branch.name",
+                    address: "$branch.address",
+                    phone: "$branch.phone",
+                    quantity: 1,
+                },
+            },
+            {
+                $sort: {
+                    quantity: -1,
+                    name: 1,
+                },
+            },
+        ]);
+
+        return res.status(200).json({
+            productId,
+            variantId,
+            totalBranches: branches.length,
+            branches,
+        });
+    } catch (error) {
+        return res.status(500).json({
+            message: "Failed to fetch product availability",
+            error,
+        });
     }
 };
 

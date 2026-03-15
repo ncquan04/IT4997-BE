@@ -6,6 +6,7 @@ import {
     getAllProductsAdmin,
     changeProductStatus,
     getProductById,
+    getProductAvailability,
 } from "../services/product.service";
 import { auth } from "../middlewares/auth";
 import { validate } from "../middlewares/validate";
@@ -45,6 +46,7 @@ ProductRouter.get(
 
 // Public routes
 ProductRouter.get("/products", getAllProducts);
+ProductRouter.get("/products/:id/availability", getProductAvailability);
 ProductRouter.get("/products/:id", getProductById);
 
 export default ProductRouter;
