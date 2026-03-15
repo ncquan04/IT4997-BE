@@ -22,6 +22,7 @@ import UploadRouter from "./routes/upload.router";
 import ReportRouter from "./routes/report.router";
 import NotificationRouter from "./routes/notification.router";
 import BranchRouter from "./routes/branch.router";
+import InventoryRouter from "./routes/inventory.router";
 
 const app = express();
 const httpServer = createServer(app);
@@ -71,6 +72,7 @@ try {
     app.use("/api", ReportRouter);
     app.use("/api", NotificationRouter);
     app.use("/api", BranchRouter);
+    app.use("/api", InventoryRouter);
     app.use("/api", async function (req, res) {
         res.status(200).json("hello");
     });
