@@ -21,6 +21,7 @@ import { registerSocketListeners } from "./socket/socket.bootstrap";
 import UploadRouter from "./routes/upload.router";
 import ReportRouter from "./routes/report.router";
 import NotificationRouter from "./routes/notification.router";
+import BranchRouter from "./routes/branch.router";
 
 const app = express();
 const httpServer = createServer(app);
@@ -69,6 +70,7 @@ try {
     app.use("/api", UploadRouter);
     app.use("/api", ReportRouter);
     app.use("/api", NotificationRouter);
+    app.use("/api", BranchRouter);
     app.use("/api", async function (req, res) {
         res.status(200).json("hello");
     });
@@ -84,8 +86,8 @@ const server = httpServer.listen(PORT as number, "0.0.0.0", function () {
         typeof addressInfo === "string"
             ? addressInfo
             : addressInfo
-            ? addressInfo.port
-            : "";
+              ? addressInfo.port
+              : "";
     console.log("Server listening on port " + port);
     connectDatabase();
     // connectRedis(() => {
