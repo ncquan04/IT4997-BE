@@ -8,9 +8,11 @@ import { UserRole } from "../shared/models/user-model";
 import { getArray, setArray, deleteKeysByPattern } from "../cache/redisUtils";
 import { notificationService } from "./notification.service";
 import { getCategoryAndDescendantIds } from "../utils/category-tree";
+import { ElasticSearch } from "../../elasticsearch/elastic.client";
 
 const STATUS_EVALUATION = Contacts.Status.Evaluation;
 const LIMIT = 20;
+const PRODUCT_ELASTIC_INDEX = "products";
 
 interface AuthenticatedUser {
     id: string;
@@ -79,6 +81,27 @@ const getAuthenticatedUser = (req: Request): AuthenticatedUser | null => {
     return requestWithUser.user;
 };
 
+const syncProductToElastic = async (product: unknown) => {
+    try {
+        const normalized = JSON.parse(JSON.stringify(product)) as Record<
+            string,
+            unknown
+        >;
+        const id = normalized._id ? String(normalized._id) : "";
+        if (!id) {
+            return;
+        }
+
+        const { _id, ...document } = normalized;
+        document.isHide = Number(document.isHide ?? STATUS_EVALUATION.HIDE);
+
+        await ElasticSearch.updateDoc(PRODUCT_ELASTIC_INDEX, id, document);
+    } catch (error) {
+        // Sync failure should not block core product APIs.
+        console.error("Failed to sync product to Elasticsearch", error);
+    }
+};
+
 export const addProduct = async (req: Request, res: Response) => {
     try {
         const user = getAuthenticatedUser(req);
@@ -122,6 +145,7 @@ export const addProduct = async (req: Request, res: Response) => {
         const savedProduct = await newProduct.save();
 
         await deleteKeysByPattern("products:base_mapped:*");
+        await syncProductToElastic(savedProduct.toObject());
 
         notificationService.pushNotification(
             "PRODUCT",
@@ -310,6 +334,9 @@ export const updateProduct = async (req: Request, res: Response) => {
         }
 
         await deleteKeysByPattern("products:base_mapped:*");
+        await syncProductToElastic(
+            updatedProduct as unknown as Record<string, unknown>
+        );
         notificationService.pushNotification(
             "PRODUCT",
             "Product Update",
@@ -369,6 +396,9 @@ export const changeProductStatus = async (req: Request, res: Response) => {
             return res.status(404).json({ message: "Product not found" });
         }
         await deleteKeysByPattern("products:base_mapped:*");
+        await syncProductToElastic(
+            updatedProduct as unknown as Record<string, unknown>
+        );
         notificationService.pushNotification(
             "PRODUCT",
             "Product Update",
