@@ -24,10 +24,17 @@ const bodySchema = {
             variants: {
                 type: "nested",
                 properties: {
-                    version: { type: "keyword" },
-                    colorName: { type: "keyword" },
+                    variantName: { type: "keyword" },
+                    attributes: {
+                        type: "nested",
+                        properties: {
+                            key: { type: "keyword" },
+                            value: { type: "keyword" },
+                        },
+                    },
                     price: { type: "integer" },
                     salePrice: { type: "integer" },
+                    costPrice: { type: "integer" },
                     sku: { type: "keyword" },
                     _id: { type: "keyword" },
                 },
