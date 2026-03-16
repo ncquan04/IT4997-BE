@@ -5,6 +5,7 @@ import ProductModel from "../models/product-model.mongo";
 import StockImportModel from "../models/stock-import-model.mongo";
 import SupplierModel from "../models/supplier-model.mongo";
 import { Contacts } from "../shared/contacts";
+import { parsePositiveInt } from "../utils";
 
 type AuthenticatedRequest = Request & {
     user?: {
@@ -18,12 +19,6 @@ const STATUS_STOCK = Contacts.Status.Stock;
 const validStockStatuses = Object.values(STATUS_STOCK) as number[];
 
 const toObjectId = (id: string) => new mongoose.Types.ObjectId(id);
-
-const parsePositiveInt = (value: unknown, fallback: number): number => {
-    const parsed = Number(value);
-    if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
-    return Math.floor(parsed);
-};
 
 type StockImportRequestItem = {
     productId: string;

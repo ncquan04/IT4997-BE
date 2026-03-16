@@ -3,12 +3,7 @@ import mongoose from "mongoose";
 import BranchInventoryModel from "../models/branch-inventory-model.mongo";
 import ProductModel from "../models/product-model.mongo";
 import BranchModel from "../models/branch-model.mongo";
-
-const parsePositiveInt = (value: unknown, fallback: number): number => {
-    const parsed = Number(value);
-    if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
-    return Math.floor(parsed);
-};
+import { parsePositiveInt } from "../utils";
 
 const parseBooleanQuery = (value: unknown): boolean | null => {
     if (value === undefined) return null;

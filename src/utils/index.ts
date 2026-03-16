@@ -1,5 +1,11 @@
 import crypto from "crypto";
 
+export const parsePositiveInt = (value: unknown, fallback: number): number => {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+    return Math.floor(parsed);
+};
+
 export const getIPFromRequest = (req: any) => {
     const forwarded: any = req.headers["x-forwarded-for"];
     const ip = forwarded ? forwarded.split(/, /)[0] : req.socket?.remoteAddress;
