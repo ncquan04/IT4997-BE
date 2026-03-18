@@ -1,9 +1,10 @@
-import { Document, Model, Schema, model } from "mongoose";
+import { Document, Model, Schema, model, Types } from "mongoose";
 import { IOrder } from "../shared/models/order-model";
 import { IProductItem } from "../shared/models/order-model";
 import { productTableName } from "./product-model.mongo";
 import { Contacts } from "../shared/contacts";
 import { userTableName } from "./user-model.mongo";
+import { branchTableName } from "./branch-model.mongo";
 
 const STATUS_ORDER = Contacts.Status.Order;
 export const orderTableName = "Order";
@@ -24,9 +25,12 @@ const productItemSchema = new Schema<IProductItem>(
             type: Schema.Types.ObjectId as any,
             required: true,
         },
+        variantName: { type: String, required: false, default: "" },
+        image: { type: String, required: false, default: "" },
         title: { type: String, required: true },
         description: { type: String, required: true },
         price: { type: Number, required: true },
+        costPrice: { type: Number, required: false, default: 0 },
         quantity: { type: Number, required: true },
         discount: { type: Number, required: false },
         totalMoney: { type: Number, required: true },
@@ -52,6 +56,12 @@ const orderSchema = new Schema<OrderDocument>(
             type: Number,
             enum: Object.values(STATUS_ORDER),
             default: STATUS_ORDER.ORDERED,
+        },
+        branchId: {
+            type: Schema.Types.ObjectId,
+            ref: branchTableName,
+            required: false,
+            default: null,
         },
     },
     { timestamps: true, versionKey: false }

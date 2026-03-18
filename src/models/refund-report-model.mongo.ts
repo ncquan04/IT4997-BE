@@ -3,6 +3,7 @@ import { IRefundReport } from "../shared/models/refund-report-model";
 import { Contacts } from "../shared/contacts";
 import { userTableName } from "./user-model.mongo";
 import { orderTableName } from "./order-model.mongo";
+import { branchTableName } from "./branch-model.mongo";
 
 export const refundReportTableName = "refundReport";
 
@@ -28,6 +29,12 @@ const refundReportSchema = new Schema<RefundReportDocument>(
         reason: { type: String, required: true },
         amount: { type: Number, required: true },
         images: [{ type: String, required: true }],
+        branchId: {
+            type: Schema.Types.ObjectId,
+            ref: branchTableName,
+            required: false,
+            default: null,
+        },
     },
     { versionKey: false, timestamps: true }
 );

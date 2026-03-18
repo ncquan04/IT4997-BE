@@ -60,6 +60,14 @@ export const createStockImport = async (req: Request, res: Response) => {
         const { branchId, supplierId, items, note } =
             req.body as StockImportRequestBody;
 
+        // If verifyBranchScope set a targetBranchId, staff can only import for their own branch.
+        const effectiveBranchId: string =
+            (req as any).targetBranchId ?? branchId;
+
+        if (!effectiveBranchId) {
+            return res.status(400).json({ message: "branchId is required" });
+        }
+
         const normalizedItems = normalizeItemsByImei(items);
 
         if (normalizedItems.some((item) => item.quantity <= 0)) {
@@ -70,7 +78,7 @@ export const createStockImport = async (req: Request, res: Response) => {
         }
 
         const [branch, supplier] = await Promise.all([
-            BranchModel.findById(branchId).lean(),
+            BranchModel.findById(effectiveBranchId).lean(),
             SupplierModel.findById(supplierId).lean(),
         ]);
 
@@ -119,7 +127,7 @@ export const createStockImport = async (req: Request, res: Response) => {
         );
 
         const stockImport = await StockImportModel.create({
-            branchId,
+            branchId: effectiveBranchId,
             supplierId,
             items: normalizedItems,
             note: note ?? "",
@@ -142,15 +150,20 @@ export const createStockImport = async (req: Request, res: Response) => {
 
 export const getStockImportList = async (req: Request, res: Response) => {
     try {
-        const { branchId, status } = req.query;
+        const { status } = req.query;
+
+        // If verifyBranchScope set a targetBranchId, use it; otherwise fall back to query param.
+        const effectiveBranchId: string | undefined =
+            (req as any).targetBranchId ??
+            (req.query.branchId as string | undefined);
 
         const filter: Record<string, unknown> = {};
 
-        if (typeof branchId === "string") {
-            if (!mongoose.isValidObjectId(branchId)) {
+        if (effectiveBranchId !== undefined) {
+            if (!mongoose.isValidObjectId(effectiveBranchId)) {
                 return res.status(400).json({ message: "Invalid branchId" });
             }
-            filter.branchId = new mongoose.Types.ObjectId(branchId);
+            filter.branchId = new mongoose.Types.ObjectId(effectiveBranchId);
         }
 
         if (typeof status === "string") {
@@ -212,6 +225,21 @@ export const getStockImportById = async (req: Request, res: Response) => {
 
         if (!stockImport) {
             return res.status(404).json({ message: "Stock import not found" });
+        }
+
+        const targetBranchId: string | undefined = (req as any).targetBranchId;
+        if (
+            targetBranchId &&
+            String(
+                (stockImport as any).branchId?._id ?? stockImport.branchId
+            ) !== targetBranchId
+        ) {
+            return res
+                .status(403)
+                .json({
+                    message:
+                        "Access denied. This record does not belong to your branch.",
+                });
         }
 
         return res.status(200).json(stockImport);

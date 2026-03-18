@@ -105,15 +105,20 @@ const buildZeroQuantitySearchRows = async (
 
 export const getInventoryList = async (req: Request, res: Response) => {
     try {
-        const { branchId, productId, variantId, inStock, search } = req.query;
+        const { productId, variantId, inStock, search } = req.query;
+
+        // If verifyBranchScope set a targetBranchId, use it; otherwise fall back to query param.
+        const effectiveBranchId: string | undefined =
+            (req as any).targetBranchId ??
+            (req.query.branchId as string | undefined);
 
         const filter: Record<string, unknown> = {};
 
-        if (typeof branchId === "string") {
-            if (!mongoose.isValidObjectId(branchId)) {
+        if (effectiveBranchId !== undefined) {
+            if (!mongoose.isValidObjectId(effectiveBranchId)) {
                 return res.status(400).json({ message: "Invalid branchId" });
             }
-            filter.branchId = new mongoose.Types.ObjectId(branchId);
+            filter.branchId = new mongoose.Types.ObjectId(effectiveBranchId);
         }
 
         if (typeof productId === "string") {
@@ -260,7 +265,7 @@ export const getInventoryList = async (req: Request, res: Response) => {
                 keyword,
                 page,
                 limit,
-                typeof branchId === "string" ? branchId : undefined
+                effectiveBranchId
             );
 
             return res.status(200).json({
@@ -384,6 +389,19 @@ export const getInventoryById = async (req: Request, res: Response) => {
             return res
                 .status(404)
                 .json({ message: "Inventory item not found" });
+        }
+
+        const targetBranchId: string | undefined = (req as any).targetBranchId;
+        if (
+            targetBranchId &&
+            String(inventoryItem.branchId) !== targetBranchId
+        ) {
+            return res
+                .status(403)
+                .json({
+                    message:
+                        "Access denied. This item does not belong to your branch.",
+                });
         }
 
         return res.status(200).json(inventoryItem);

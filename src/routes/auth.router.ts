@@ -17,7 +17,13 @@ AuthRouter.post("/auth/login", validate(loginSchema), login);
 AuthRouter.get(
     "/auth/admin-protected",
     auth,
-    verifyRole([UserRole.ADMIN]),
+    verifyRole([
+        UserRole.ADMIN,
+        UserRole.MANAGER,
+        UserRole.WAREHOUSE,
+        UserRole.SALES,
+        UserRole.TECHNICIAN,
+    ]),
     async (req, res) => {
         return res.status(200).json(true);
     }

@@ -57,6 +57,9 @@ export const auth = async (req, res, next) => {
             id: userAccess._id,
             role: userAccess.role,
             email: userAccess.email,
+            branchId: userAccess.branchId
+                ? String(userAccess.branchId)
+                : undefined,
         };
         return next();
     }
@@ -80,6 +83,9 @@ export const auth = async (req, res, next) => {
             id: userRefresh._id,
             role: userRefresh.role,
             email: userRefresh.email,
+            branchId: userRefresh.branchId
+                ? String(userRefresh.branchId)
+                : undefined,
         };
 
         return next();

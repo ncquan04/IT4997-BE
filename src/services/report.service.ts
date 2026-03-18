@@ -21,6 +21,10 @@ export const creatReportRefund = async (req: Request, res: Response) => {
             phone: cusPhone,
         };
         const userId = (req as any).user.id;
+        const branchId =
+            (req as any).targetBranchId ??
+            (req as any).user.branchId ??
+            undefined;
         // Validate required fields
         const createdReport = await RefundReportModel.create({
             orderId,
@@ -30,6 +34,9 @@ export const creatReportRefund = async (req: Request, res: Response) => {
             reason,
             amount,
             images,
+            branchId: branchId
+                ? new mongoose.Types.ObjectId(branchId)
+                : undefined,
         });
         return res.status(200).json(createdReport);
     } catch (error) {
@@ -49,6 +56,17 @@ export const getRefundReportById = async (req: Request, res: Response) => {
                 message: "Refund report not found",
             });
         }
+
+        const targetBranchId: string | undefined = (req as any).targetBranchId;
+        if (targetBranchId && String(report.branchId) !== targetBranchId) {
+            return res
+                .status(403)
+                .json({
+                    message:
+                        "Access denied. This report does not belong to your branch.",
+                });
+        }
+
         return res.status(200).json(report);
     } catch (error) {
         console.error("Error fetching refund report by ID:", error);
@@ -60,7 +78,14 @@ export const getRefundReportById = async (req: Request, res: Response) => {
 
 export const getRefundReports = async (req: Request, res: Response) => {
     try {
-        const reports = await RefundReportModel.find().sort({ createdAt: -1 });
+        const branchId: string | undefined = (req as any).targetBranchId;
+        const filter: Record<string, unknown> = {};
+        if (branchId) {
+            filter.branchId = new mongoose.Types.ObjectId(branchId);
+        }
+        const reports = await RefundReportModel.find(filter).sort({
+            createdAt: -1,
+        });
         return res.status(200).json(reports);
     } catch (error) {
         console.error("Error fetching refund reports:", error);

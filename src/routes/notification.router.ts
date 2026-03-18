@@ -9,7 +9,7 @@ const NotificationRouter = express.Router();
 NotificationRouter.get(
     "/notifications",
     auth,
-    verifyRole([UserRole.ADMIN]),
+    verifyRole([UserRole.ADMIN, UserRole.MANAGER]),
     async (req, res) => {
         try {
             const userId = (req as any).user.id;
@@ -29,7 +29,7 @@ NotificationRouter.get(
 NotificationRouter.get(
     "/notifications/count-unread",
     auth,
-    verifyRole([UserRole.ADMIN]),
+    verifyRole([UserRole.ADMIN, UserRole.MANAGER]),
     async (req, res) => {
         try {
             const userId = (req as any).user.id;
@@ -44,7 +44,7 @@ NotificationRouter.get(
 NotificationRouter.put(
     "/notifications/send",
     auth,
-    verifyRole([UserRole.ADMIN]),
+    verifyRole([UserRole.ADMIN, UserRole.MANAGER]),
     async (req, res) => {
         try {
             const { notificationId } = req.body;

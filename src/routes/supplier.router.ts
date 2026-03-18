@@ -9,7 +9,7 @@ const SupplierRouter = express.Router();
 SupplierRouter.get(
     "/suppliers",
     auth,
-    verifyRole([UserRole.ADMIN, UserRole.WAREHOUSE]),
+    verifyRole([UserRole.ADMIN, UserRole.MANAGER, UserRole.WAREHOUSE]),
     getAllSuppliers
 );
 

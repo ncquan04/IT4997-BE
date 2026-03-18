@@ -170,13 +170,13 @@ class OrderService {
                 sumPrice += itemTotalMoney;
                 listProduct.push({
                     productId: product._id,
-                    variantId: variant._id, // <--- LƯU VARIANT ID VÀO ORDER
-
-                    // Tạo tên đầy đủ: "iPhone 15 - Màu Đỏ (128GB)"
-                    title: `${product.title} - ${variant.colorName} (${variant.version})`,
-
+                    variantId: variant._id,
+                    variantName: variant.variantName ?? "",
+                    image: variant.images?.[0] ?? "",
+                    title: `${product.title} - ${variant.variantName}`,
                     description: product.description || "",
-                    price: finalPrice, // <--- LƯU GIÁ CỦA VARIANT
+                    price: finalPrice,
+                    costPrice: variant.costPrice ?? 0,
                     quantity: item.quantity,
                     discount: 0,
                     totalMoney: itemTotalMoney,
@@ -380,13 +380,26 @@ class OrderService {
         page: number = 1,
         limit: number = 10,
         search?: string,
-        status?: string
+        status?: string,
+        branchId?: string
     ) {
         try {
             const skip = (page - 1) * limit;
 
             // 1. Pipeline cơ bản: Join với bảng Payments để kiểm tra độ uy tín
             const basePipeline: PipelineStage[] = [
+                // Lọc theo chi nhánh nếu được cung cấp (staff chỉ thấy đơn của chi nhánh mình)
+                ...(branchId
+                    ? [
+                          {
+                              $match: {
+                                  branchId: new mongoose.Types.ObjectId(
+                                      branchId
+                                  ),
+                              },
+                          } as PipelineStage,
+                      ]
+                    : []),
                 // Nối bảng Payment
                 {
                     $lookup: {
@@ -535,11 +548,13 @@ class OrderService {
         page = 1,
         limit = 10,
         search,
+        branchId,
     }: {
         paymentStatus: (typeof PAYMENT_STATUS)[keyof typeof PAYMENT_STATUS];
         page?: number;
         limit?: number;
         search?: string;
+        branchId?: string;
     }) {
         const skip = (page - 1) * limit || 0;
 
@@ -561,6 +576,16 @@ class OrderService {
             : null;
 
         const pipeline: any[] = [
+            // 0️⃣ Filter by branch for non-admin staff
+            ...(branchId
+                ? [
+                      {
+                          $match: {
+                              branchId: new mongoose.Types.ObjectId(branchId),
+                          },
+                      },
+                  ]
+                : []),
             // 1️⃣ Join payment
             {
                 $lookup: {

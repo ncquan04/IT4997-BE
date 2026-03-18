@@ -1,6 +1,7 @@
 import express from "express";
 import { auth } from "../middlewares/auth";
 import { verifyRole } from "../middlewares/verifyRole";
+import { verifyBranchScope } from "../middlewares/verifyBranchScope";
 import { UserRole } from "../shared/models/user-model";
 import { orderServices } from "../services/order.service";
 import { validate } from "../middlewares/validate";
@@ -164,19 +165,22 @@ OrderRouter.get("/orders/order-delivery", auth, async (req, res) => {
 OrderRouter.get(
     "/orders/all",
     auth,
-    verifyRole([UserRole.ADMIN]), // Chỉ Admin mới được vào
+    verifyRole([UserRole.ADMIN, UserRole.MANAGER, UserRole.SALES]),
+    verifyBranchScope(),
     async (req: any, res: any) => {
         try {
             const page = parseInt(req.query.page as string) || 1;
             const limit = parseInt(req.query.limit as string) || 10;
             const search = req.query.search as string;
             const status = req.query.status as string;
+            const branchId: string | undefined = req.targetBranchId;
 
             const result = await orderServices.getAllOrders(
                 page,
                 limit,
                 search,
-                status
+                status,
+                branchId
             );
 
             return res.status(200).json({
@@ -196,16 +200,19 @@ OrderRouter.get(
 OrderRouter.get(
     "/orders/admin/payment",
     auth,
-    verifyRole([UserRole.ADMIN]),
+    verifyRole([UserRole.ADMIN, UserRole.MANAGER, UserRole.SALES]),
+    verifyBranchScope(),
     async (req, res) => {
         try {
             const { page, paymentStatus, search, limit } = req.query;
+            const branchId: string | undefined = (req as any).targetBranchId;
             const response = await orderServices.getOrdersByPaymentStatus({
                 paymentStatus: Number(
                     paymentStatus
                 ) as (typeof PAYMENT_STATUS)[keyof typeof PAYMENT_STATUS],
                 page: Number(page),
                 search: search as string,
+                branchId,
             });
             return res.status(200).json(response);
         } catch (err) {
