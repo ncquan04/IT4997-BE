@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import mongoose from "mongoose";
+import BranchInventoryModel from "../models/branch-inventory-model.mongo";
 import BranchModel from "../models/branch-model.mongo";
 import ProductModel from "../models/product-model.mongo";
 import StockImportModel from "../models/stock-import-model.mongo";
@@ -221,6 +222,10 @@ export const getStockImportById = async (req: Request, res: Response) => {
             .populate("branchId", "name address phone isActive")
             .populate("supplierId", "name contactPerson phone email address")
             .populate("createdBy", "userName email role")
+            .populate(
+                "items.productId",
+                "title variants._id variants.variantName"
+            )
             .lean();
 
         if (!stockImport) {
@@ -234,12 +239,10 @@ export const getStockImportById = async (req: Request, res: Response) => {
                 (stockImport as any).branchId?._id ?? stockImport.branchId
             ) !== targetBranchId
         ) {
-            return res
-                .status(403)
-                .json({
-                    message:
-                        "Access denied. This record does not belong to your branch.",
-                });
+            return res.status(403).json({
+                message:
+                    "Access denied. This record does not belong to your branch.",
+            });
         }
 
         return res.status(200).json(stockImport);
@@ -248,5 +251,88 @@ export const getStockImportById = async (req: Request, res: Response) => {
             message: "Failed to fetch stock import detail",
             error,
         });
+    }
+};
+
+// Allowed status transitions
+const ALLOWED_TRANSITIONS: Record<number, number[]> = {
+    [STATUS_STOCK.PENDING]: [STATUS_STOCK.COMPLETED, STATUS_STOCK.CANCELLED],
+};
+
+export const updateStockImportStatus = async (req: Request, res: Response) => {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    try {
+        const { id } = req.params;
+        const { status } = req.body as { status: number };
+
+        if (!mongoose.isValidObjectId(id)) {
+            await session.abortTransaction();
+            return res.status(400).json({ message: "Invalid stock import id" });
+        }
+
+        if (!Number.isFinite(status) || !validStockStatuses.includes(status)) {
+            await session.abortTransaction();
+            return res.status(400).json({ message: "Invalid status" });
+        }
+
+        const stockImport =
+            await StockImportModel.findById(id).session(session);
+        if (!stockImport) {
+            await session.abortTransaction();
+            return res.status(404).json({ message: "Stock import not found" });
+        }
+
+        // Branch scope check
+        const targetBranchId: string | undefined = (req as any).targetBranchId;
+        if (targetBranchId && String(stockImport.branchId) !== targetBranchId) {
+            await session.abortTransaction();
+            return res.status(403).json({
+                message:
+                    "Access denied. This record does not belong to your branch.",
+            });
+        }
+
+        const currentStatus = stockImport.status as number;
+        const allowedNext = ALLOWED_TRANSITIONS[currentStatus] ?? [];
+        if (!allowedNext.includes(status)) {
+            await session.abortTransaction();
+            return res.status(400).json({
+                message: `Cannot transition from status ${currentStatus} to ${status}`,
+            });
+        }
+
+        stockImport.status = status as any;
+        await stockImport.save({ session });
+
+        // When COMPLETED: update branch inventory
+        if (status === STATUS_STOCK.COMPLETED) {
+            for (const item of stockImport.items) {
+                await BranchInventoryModel.findOneAndUpdate(
+                    {
+                        branchId: stockImport.branchId,
+                        productId: item.productId,
+                        variantId: item.variantId,
+                    },
+                    {
+                        $inc: { quantity: item.quantity },
+                        $push: { imeiList: { $each: item.imeiList ?? [] } },
+                    },
+                    { upsert: true, session }
+                );
+            }
+        }
+
+        await session.commitTransaction();
+        return res
+            .status(200)
+            .json({ message: "Status updated successfully", status });
+    } catch (error) {
+        await session.abortTransaction();
+        return res
+            .status(500)
+            .json({ message: "Failed to update stock import status", error });
+    } finally {
+        session.endSession();
     }
 };

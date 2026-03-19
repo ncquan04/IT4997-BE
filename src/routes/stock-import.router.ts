@@ -10,6 +10,7 @@ import {
     createStockImport,
     getStockImportById,
     getStockImportList,
+    updateStockImportStatus,
 } from "../services/stock-import.service";
 
 const StockImportRouter = express.Router();
@@ -37,6 +38,14 @@ StockImportRouter.post(
     verifyBranchScope(),
     validate(createStockImportSchema),
     createStockImport
+);
+
+StockImportRouter.patch(
+    "/stock-imports/:id/status",
+    auth,
+    verifyRole([UserRole.ADMIN, UserRole.MANAGER]),
+    verifyBranchScope(),
+    updateStockImportStatus
 );
 
 export default StockImportRouter;
