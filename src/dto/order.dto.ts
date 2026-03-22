@@ -7,7 +7,7 @@ export const productItemSchema = yup.object({
 
     title: yup.string().required("title is required"),
 
-    description: yup.string().required("description is required"),
+    description: yup.string().optional().default(""),
 
     price: yup
         .number()

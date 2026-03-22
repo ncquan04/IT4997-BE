@@ -28,7 +28,7 @@ const productItemSchema = new Schema<IProductItem>(
         variantName: { type: String, required: false, default: "" },
         image: { type: String, required: false, default: "" },
         title: { type: String, required: true },
-        description: { type: String, required: true },
+        description: { type: String, required: false, default: "" },
         price: { type: Number, required: true },
         costPrice: { type: Number, required: false, default: 0 },
         quantity: { type: Number, required: true },

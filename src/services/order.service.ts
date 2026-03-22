@@ -7,6 +7,7 @@ import ProductModel from "../models/product-model.mongo";
 import { IProductItem } from "../shared/models/order-model";
 import { Contacts } from "../shared/contacts";
 import { notificationService } from "./notification.service";
+import BranchInventoryModel from "../models/branch-inventory-model.mongo";
 
 const STATUS_ORDER = Contacts.Status.Order;
 const PAYMENT_STATUS = Contacts.Status.Payment;
@@ -181,6 +182,31 @@ class OrderService {
                     discount: 0,
                     totalMoney: itemTotalMoney,
                 });
+            }
+
+            // Tạo đơn hàng mới
+
+            // Check tồn kho tổng hợp trước khi tạo đơn
+            for (const item of listProduct) {
+                const agg = await BranchInventoryModel.aggregate([
+                    {
+                        $match: {
+                            productId: new mongoose.Types.ObjectId(
+                                String(item.productId)
+                            ),
+                            variantId: new mongoose.Types.ObjectId(
+                                String(item.variantId)
+                            ),
+                        },
+                    },
+                    { $group: { _id: null, totalQty: { $sum: "$quantity" } } },
+                ]).session(session);
+                const totalQty: number = agg[0]?.totalQty ?? 0;
+                if (totalQty < item.quantity) {
+                    throw new Error(
+                        `NOT_ENOUGH_STOCK:${item.title}:available=${totalQty}:requested=${item.quantity}`
+                    );
+                }
             }
 
             // Tạo đơn hàng mới

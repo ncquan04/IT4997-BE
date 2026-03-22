@@ -163,8 +163,10 @@ class PaymentService {
                     );
 
                     if (paymentUpdated) {
+                        // Move to PROCESSING so admin can assign IMEI and ship.
+                        // Do NOT jump to SHIPPING here — that requires stock export.
                         await orderServices.updateOrder(
-                            { statusOrder: STATUS_ORDER.SHIPPING },
+                            { statusOrder: STATUS_ORDER.PROCESSING },
                             orderId
                         );
                         notificationService.pushNotification(

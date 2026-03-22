@@ -15,6 +15,7 @@ import {
     reverseInventoryForOrder,
     ImeiAssignment,
 } from "../services/stock-export.service";
+import BranchInventoryModel from "../models/branch-inventory-model.mongo";
 import mongoose from "mongoose";
 import { Contacts } from "../shared/contacts";
 import { IProductItem } from "../shared/models/order-model";
@@ -82,6 +83,18 @@ OrderRouter.post(
                         "One of the products in your cart no longer exists",
                 });
             }
+            if (
+                error.message &&
+                error.message.startsWith("NOT_ENOUGH_STOCK:")
+            ) {
+                // Format: NOT_ENOUGH_STOCK:<title>:available=<n>:requested=<m>
+                const [, title, avail, req] = error.message.split(":");
+                const available = avail?.split("=")[1];
+                const requested = req?.split("=")[1];
+                return res.status(400).json({
+                    message: `Not enough stock for "${title}". Available: ${available}, requested: ${requested}`,
+                });
+            }
 
             // Lỗi server không xác định
             return res.status(500).json({
@@ -109,6 +122,29 @@ OrderRouter.post(
             const userId = (req as any).user.id;
             if (!userId) {
                 console.log("userId not found");
+            }
+
+            // Check total stock across all branches for each item
+            for (const item of listProduct as IProductItem[]) {
+                const agg = await BranchInventoryModel.aggregate([
+                    {
+                        $match: {
+                            productId: new mongoose.Types.ObjectId(
+                                item.productId
+                            ),
+                            variantId: new mongoose.Types.ObjectId(
+                                item.variantId
+                            ),
+                        },
+                    },
+                    { $group: { _id: null, totalQty: { $sum: "$quantity" } } },
+                ]);
+                const totalQty: number = agg[0]?.totalQty ?? 0;
+                if (totalQty < item.quantity) {
+                    return res.status(400).json({
+                        message: `Not enough stock for "${item.title}". Available: ${totalQty}, requested: ${item.quantity}`,
+                    });
+                }
             }
 
             const newOrder = await orderServices.createOrder({
