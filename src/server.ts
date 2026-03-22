@@ -24,6 +24,7 @@ import NotificationRouter from "./routes/notification.router";
 import BranchRouter from "./routes/branch.router";
 import InventoryRouter from "./routes/inventory.router";
 import StockImportRouter from "./routes/stock-import.router";
+import StockExportRouter from "./routes/stock-export.router";
 import SupplierRouter from "./routes/supplier.router";
 
 const app = express();
@@ -76,6 +77,7 @@ try {
     app.use("/api", BranchRouter);
     app.use("/api", InventoryRouter);
     app.use("/api", StockImportRouter);
+    app.use("/api", StockExportRouter);
     app.use("/api", SupplierRouter);
     app.use("/api", async function (req, res) {
         res.status(200).json("hello");

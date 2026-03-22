@@ -53,3 +53,31 @@ export const changeOrderSchema = yup.object({
     orderId: yup.string().required("orderId is required"),
     statusOrder: yup.number().required("statusOrder is required"),
 });
+
+const objectIdRegex = /^[0-9a-fA-F]{24}$/;
+
+const imeiAssignmentSchema = yup.object({
+    productId: yup
+        .string()
+        .trim()
+        .matches(objectIdRegex, "Invalid productId format")
+        .required("productId is required"),
+    variantId: yup
+        .string()
+        .trim()
+        .matches(objectIdRegex, "Invalid variantId format")
+        .required("variantId is required"),
+    imeiList: yup
+        .array()
+        .of(yup.string().trim().required("imei must not be empty"))
+        .min(1, "imeiList must contain at least one IMEI")
+        .required("imeiList is required"),
+});
+
+export const shipOrderSchema = yup.object({
+    imeiAssignments: yup
+        .array()
+        .of(imeiAssignmentSchema)
+        .min(1, "imeiAssignments must contain at least one item")
+        .required("imeiAssignments is required"),
+});

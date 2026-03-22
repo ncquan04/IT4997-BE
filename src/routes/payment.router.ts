@@ -28,9 +28,8 @@ PaymentRouter.post("/payment/creator", auth, async (req, res) => {
             return res.status(400).json("method is required");
         }
 
-        const orderRes = await orderServices.orderInfoWidthListProductDetail(
-            orderId
-        );
+        const orderRes =
+            await orderServices.orderInfoWidthListProductDetail(orderId);
         if (orderRes.length <= 0 || orderRes[0].listProduct.length === 0) {
             return res.status(400).json("Order not found");
         }
@@ -154,7 +153,7 @@ PaymentRouter.get("/payment/weeb-hook", (req, res) => {
 
 PaymentRouter.put("/payment/change", auth, async (req, res) => {
     try {
-        const userId = (req as any).user._id;
+        const userId = (req as any).user.id;
         const { status, paymentId } = req.body;
         await paymentService.updatePayment(
             {

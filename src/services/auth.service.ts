@@ -70,6 +70,7 @@ export const login = async (req: any, res: any) => {
             id: crypto.randomUUID(),
             role: user.role,
             email: user.email,
+            branchId: user.branchId,
         };
 
         // Generate tokens (pseudo code)

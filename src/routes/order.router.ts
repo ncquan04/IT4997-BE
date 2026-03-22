@@ -5,7 +5,17 @@ import { verifyBranchScope } from "../middlewares/verifyBranchScope";
 import { UserRole } from "../shared/models/user-model";
 import { orderServices } from "../services/order.service";
 import { validate } from "../middlewares/validate";
-import { changeOrderSchema, createOrderSchema } from "../dto/order.dto";
+import {
+    changeOrderSchema,
+    createOrderSchema,
+    shipOrderSchema,
+} from "../dto/order.dto";
+import {
+    createStockExportFromOrder,
+    reverseInventoryForOrder,
+    ImeiAssignment,
+} from "../services/stock-export.service";
+import mongoose from "mongoose";
 import { Contacts } from "../shared/contacts";
 import { IProductItem } from "../shared/models/order-model";
 import { notificationService } from "../services/notification.service";
@@ -222,6 +232,117 @@ OrderRouter.get(
     }
 );
 
+/**
+ * POST /api/orders/:id/ship
+ * Admin chuyển order sang SHIPPING, cung cấp IMEI cụ thể cho từng sản phẩm.
+ * Tạo StockExport COMPLETED + deduct BranchInventory trong cùng 1 transaction.
+ */
+OrderRouter.post(
+    "/orders/:id/ship",
+    auth,
+    verifyRole([UserRole.ADMIN, UserRole.MANAGER, UserRole.WAREHOUSE]),
+    validate(shipOrderSchema),
+    async (req: any, res: any) => {
+        const session = await mongoose.startSession();
+        session.startTransaction();
+        try {
+            const orderId = req.params.id;
+            const { imeiAssignments } = req.body as {
+                imeiAssignments: ImeiAssignment[];
+            };
+            const userId: string = req.user.id;
+
+            if (!mongoose.isValidObjectId(orderId)) {
+                await session.abortTransaction();
+                return res.status(400).json({ message: "Invalid order id" });
+            }
+
+            const order = await (
+                await import("../models/order-model.mongo")
+            ).default
+                .findById(orderId)
+                .session(session);
+
+            if (!order) {
+                await session.abortTransaction();
+                return res.status(404).json({ message: "Order not found" });
+            }
+
+            if (order.statusOrder !== STATUS_ORDER.PROCESSING) {
+                await session.abortTransaction();
+                return res.status(400).json({
+                    message: `Order must be in PROCESSING status to ship. Current status: ${order.statusOrder}`,
+                });
+            }
+
+            if (!order.branchId) {
+                await session.abortTransaction();
+                return res.status(400).json({
+                    message:
+                        "Order has no branch assigned. Cannot determine which inventory to deduct.",
+                });
+            }
+
+            // Validate that imeiAssignments cover all products in the order
+            for (const item of order.listProduct) {
+                const assignment = imeiAssignments.find(
+                    (a) =>
+                        a.productId === String(item.productId) &&
+                        a.variantId === String(item.variantId)
+                );
+                if (!assignment) {
+                    await session.abortTransaction();
+                    return res.status(400).json({
+                        message: `Missing IMEI assignment for productId=${item.productId} variantId=${item.variantId}`,
+                    });
+                }
+                if (assignment.imeiList.length !== item.quantity) {
+                    await session.abortTransaction();
+                    return res.status(400).json({
+                        message: `IMEI count (${assignment.imeiList.length}) does not match order quantity (${item.quantity}) for productId=${item.productId}`,
+                    });
+                }
+            }
+
+            // Create StockExport + deduct inventory inside the transaction
+            await createStockExportFromOrder(
+                orderId,
+                String(order.branchId),
+                userId,
+                imeiAssignments,
+                session
+            );
+
+            // Update order status to SHIPPING
+            order.statusOrder = STATUS_ORDER.SHIPPING;
+            await order.save({ session });
+
+            await session.commitTransaction();
+
+            notificationService.pushNotification(
+                "ORDER",
+                "Order shipped",
+                `Order #${orderId} is now being shipped`,
+                orderId,
+                userId
+            );
+
+            return res.status(200).json({
+                message: "Order is now shipping",
+                statusOrder: STATUS_ORDER.SHIPPING,
+            });
+        } catch (error: any) {
+            await session.abortTransaction();
+            return res.status(500).json({
+                message: error?.message ?? "Failed to ship order",
+                error,
+            });
+        } finally {
+            session.endSession();
+        }
+    }
+);
+
 OrderRouter.put(
     "/orders/change",
     auth,
@@ -231,12 +352,51 @@ OrderRouter.put(
             const userId = (req as any).user.id;
             const { statusOrder, orderId } = req.body;
 
-            await orderServices.updateOrder(
-                {
-                    statusOrder,
-                },
-                orderId
-            );
+            // When transitioning to RETURNED, restore inventory in a transaction
+            if (statusOrder === STATUS_ORDER.RETURNED) {
+                const session = await mongoose.startSession();
+                session.startTransaction();
+                try {
+                    const OrderModel = (
+                        await import("../models/order-model.mongo")
+                    ).default;
+                    const order =
+                        await OrderModel.findById(orderId).session(session);
+
+                    if (!order) {
+                        await session.abortTransaction();
+                        return res
+                            .status(404)
+                            .json({ message: "Order not found" });
+                    }
+
+                    const allowedFromStatuses = [
+                        STATUS_ORDER.SHIPPING,
+                        STATUS_ORDER.DELIVERED,
+                    ];
+                    if (!allowedFromStatuses.includes(order.statusOrder)) {
+                        await session.abortTransaction();
+                        return res.status(400).json({
+                            message: `Cannot return an order with status ${order.statusOrder}. Order must be SHIPPING or DELIVERED.`,
+                        });
+                    }
+
+                    // Restore inventory (reverses the StockExport created at shipping)
+                    await reverseInventoryForOrder(orderId, session);
+
+                    order.statusOrder = STATUS_ORDER.RETURNED;
+                    await order.save({ session });
+
+                    await session.commitTransaction();
+                } catch (err: any) {
+                    await session.abortTransaction();
+                    throw err;
+                } finally {
+                    session.endSession();
+                }
+            } else {
+                await orderServices.updateOrder({ statusOrder }, orderId);
+            }
 
             notificationService.pushNotification(
                 "ORDER",

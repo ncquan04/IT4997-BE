@@ -5,7 +5,10 @@ const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || "your_secret_key";
 class StripeService {
     private stripe;
 
-    constructor(private config: StripeBrandConfig, private secretKey: string) {
+    constructor(
+        private config: StripeBrandConfig,
+        private secretKey: string
+    ) {
         this.stripe = new Stripe(secretKey);
     }
 

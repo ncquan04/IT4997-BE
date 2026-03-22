@@ -296,6 +296,91 @@ export const getInventoryList = async (req: Request, res: Response) => {
     }
 };
 
+export const lookupImei = async (req: Request, res: Response) => {
+    try {
+        const { branchId, imei } = req.query as {
+            branchId?: string;
+            imei?: string;
+        };
+
+        if (!branchId || !mongoose.isValidObjectId(branchId)) {
+            return res
+                .status(400)
+                .json({ message: "Valid branchId is required" });
+        }
+        if (!imei || typeof imei !== "string" || imei.trim() === "") {
+            return res.status(400).json({ message: "imei is required" });
+        }
+
+        const trimmedImei = imei.trim();
+
+        const items = await BranchInventoryModel.aggregate([
+            {
+                $match: {
+                    branchId: new mongoose.Types.ObjectId(branchId),
+                    imeiList: trimmedImei,
+                },
+            },
+            {
+                $lookup: {
+                    from: "products",
+                    localField: "productId",
+                    foreignField: "_id",
+                    as: "product",
+                },
+            },
+            { $addFields: { product: { $arrayElemAt: ["$product", 0] } } },
+            {
+                $addFields: {
+                    variant: {
+                        $arrayElemAt: [
+                            {
+                                $filter: {
+                                    input: "$product.variants",
+                                    as: "v",
+                                    cond: {
+                                        $eq: [
+                                            { $toString: "$$v._id" },
+                                            { $toString: "$variantId" },
+                                        ],
+                                    },
+                                },
+                            },
+                            0,
+                        ],
+                    },
+                },
+            },
+            {
+                $project: {
+                    productId: 1,
+                    variantId: 1,
+                    product: { _id: 1, title: 1, brand: 1 },
+                    variant: {
+                        _id: 1,
+                        variantName: 1,
+                        sku: 1,
+                        price: 1,
+                        salePrice: 1,
+                    },
+                },
+            },
+        ]);
+
+        if (!items[0]) {
+            return res
+                .status(404)
+                .json({ message: "IMEI not found in this branch's inventory" });
+        }
+
+        return res.status(200).json(items[0]);
+    } catch (error) {
+        return res
+            .status(500)
+            .json({ message: "Failed to lookup IMEI", error });
+    }
+};
+
 export const getInventoryById = async (req: Request, res: Response) => {
     try {
         const id = String(req.params.id);
@@ -396,12 +481,10 @@ export const getInventoryById = async (req: Request, res: Response) => {
             targetBranchId &&
             String(inventoryItem.branchId) !== targetBranchId
         ) {
-            return res
-                .status(403)
-                .json({
-                    message:
-                        "Access denied. This item does not belong to your branch.",
-                });
+            return res.status(403).json({
+                message:
+                    "Access denied. This item does not belong to your branch.",
+            });
         }
 
         return res.status(200).json(inventoryItem);
