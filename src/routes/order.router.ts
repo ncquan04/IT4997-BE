@@ -247,8 +247,9 @@ OrderRouter.post(
         session.startTransaction();
         try {
             const orderId = req.params.id;
-            const { imeiAssignments } = req.body as {
+            const { imeiAssignments, branchId: bodyBranchId } = req.body as {
                 imeiAssignments: ImeiAssignment[];
+                branchId?: string;
             };
             const userId: string = req.user.id;
 
@@ -275,12 +276,27 @@ OrderRouter.post(
                 });
             }
 
-            if (!order.branchId) {
+            // Resolve branchId: order.branchId → body branchId → user's branchId
+            const effectiveBranchId = order.branchId
+                ? String(order.branchId)
+                : (bodyBranchId ?? req.user.branchId ?? "");
+
+            if (
+                !effectiveBranchId ||
+                !mongoose.isValidObjectId(effectiveBranchId)
+            ) {
                 await session.abortTransaction();
                 return res.status(400).json({
                     message:
-                        "Order has no branch assigned. Cannot determine which inventory to deduct.",
+                        "Branch is required to ship. Please assign a branch to this order.",
                 });
+            }
+
+            // Persist branchId on the order if it wasn't set yet
+            if (!order.branchId) {
+                order.branchId = new mongoose.Types.ObjectId(
+                    effectiveBranchId
+                ) as any;
             }
 
             // Validate that imeiAssignments cover all products in the order
@@ -307,7 +323,7 @@ OrderRouter.post(
             // Create StockExport + deduct inventory inside the transaction
             await createStockExportFromOrder(
                 orderId,
-                String(order.branchId),
+                effectiveBranchId,
                 userId,
                 imeiAssignments,
                 session
@@ -333,6 +349,11 @@ OrderRouter.post(
             });
         } catch (error: any) {
             await session.abortTransaction();
+            console.error(
+                "[Ship Order] Error for orderId=%s:",
+                req.params.id,
+                error?.stack ?? error
+            );
             return res.status(500).json({
                 message: error?.message ?? "Failed to ship order",
                 error,
@@ -370,7 +391,7 @@ OrderRouter.put(
                             .json({ message: "Order not found" });
                     }
 
-                    const allowedFromStatuses = [
+                    const allowedFromStatuses: number[] = [
                         STATUS_ORDER.SHIPPING,
                         STATUS_ORDER.DELIVERED,
                     ];

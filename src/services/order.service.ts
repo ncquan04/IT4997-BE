@@ -509,7 +509,8 @@ class OrderService {
                                     toAddress: 1,
                                     "payment.method": 1,
                                     "payment.status": 1,
-                                    listProducts: 1,
+                                    listProduct: 1,
+                                    branchId: 1,
                                     // Thông tin user Flatten ra cho dễ dùng
                                     userId: {
                                         _id: "$userInfo._id",

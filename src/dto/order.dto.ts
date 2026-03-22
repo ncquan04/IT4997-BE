@@ -75,6 +75,11 @@ const imeiAssignmentSchema = yup.object({
 });
 
 export const shipOrderSchema = yup.object({
+    branchId: yup
+        .string()
+        .trim()
+        .matches(objectIdRegex, "Invalid branchId format")
+        .optional(),
     imeiAssignments: yup
         .array()
         .of(imeiAssignmentSchema)
