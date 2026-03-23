@@ -26,6 +26,7 @@ import InventoryRouter from "./routes/inventory.router";
 import StockImportRouter from "./routes/stock-import.router";
 import StockExportRouter from "./routes/stock-export.router";
 import SupplierRouter from "./routes/supplier.router";
+import WarrantyRouter from "./routes/warranty.router";
 
 const app = express();
 const httpServer = createServer(app);
@@ -79,6 +80,7 @@ try {
     app.use("/api", StockImportRouter);
     app.use("/api", StockExportRouter);
     app.use("/api", SupplierRouter);
+    app.use("/api", WarrantyRouter);
     app.use("/api", async function (req, res) {
         res.status(200).json("hello");
     });

@@ -1,12 +1,12 @@
 import NotificationModel from "../models/notification-model.mongo";
 import { socket } from "../socket/socket";
 import { registerGateway } from "../socket/socket.gateway";
-import { NotificationTye } from "../shared/models/notification-model";
+import { NotificationType } from "../shared/models/notification-model";
 import { getIO } from "../utils/socket.config";
 import mongoose from "mongoose";
 class NotificationService {
     async pushNotification(
-        type: NotificationTye,
+        type: NotificationType,
         title: string,
         message: string,
         referenceId: string,
@@ -22,9 +22,8 @@ class NotificationService {
                 userId: new mongoose.Types.ObjectId(userId),
                 readBy: [],
             };
-            const NotificationSaved = await NotificationModel.create(
-                newNotification
-            );
+            const NotificationSaved =
+                await NotificationModel.create(newNotification);
             getIO()
                 ?.of("/admin")
                 .emit("admin:new-notification", newNotification);
