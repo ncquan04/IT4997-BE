@@ -127,7 +127,7 @@ export const createStockExportFromOrder = async (
             {
                 branchId: toObjectId(branchId),
                 items,
-                reason: Contacts.ExportReason.SALE,
+                reason: Contacts.ExportReason.ONLINE_SALE,
                 orderId: toObjectId(orderId),
                 createdBy: toObjectId(createdBy),
                 note: "",

@@ -17,6 +17,7 @@ import {
     lookupByImei,
     addRepairLog,
     getRepairLogs,
+    imeiStockLookup,
 } from "../services/warranty.service";
 
 const WarrantyRouter = express.Router();
@@ -24,6 +25,15 @@ const WarrantyRouter = express.Router();
 // TECHNICIAN cũng thuộc branch scope (giống MANAGER)
 const ALLOWED_ROLES = [UserRole.ADMIN, UserRole.MANAGER, UserRole.TECHNICIAN];
 const BRANCH_SCOPED_ROLES = [UserRole.MANAGER, UserRole.TECHNICIAN];
+
+// Tra cứu thông tin sản phẩm từ IMEI trong kho xuất
+WarrantyRouter.get(
+    "/warranty/imei-stock",
+    auth,
+    verifyRole(ALLOWED_ROLES),
+    verifyBranchScope(BRANCH_SCOPED_ROLES),
+    imeiStockLookup
+);
 
 // Tra cứu lịch sử theo IMEI — đặt trước /:id để tránh conflict
 WarrantyRouter.get(

@@ -3,9 +3,30 @@ import mongoose from "mongoose";
 import WarrantyRequestModel from "../models/warranty-request-model.mongo";
 import RepairLogModel from "../models/repair-log-model.mongo";
 import UserModel from "../models/user-model.mongo";
+import StockExportModel from "../models/stock-export-model.mongo";
 import { Contacts } from "../shared/contacts";
 import { notificationService } from "./notification.service";
 import { parsePositiveInt } from "../utils";
+import { UserRole } from "../shared/models/user-model";
+
+// ─── Walk-in customer ─────────────────────────────────────────────────────────
+// Tìm user theo SĐT; nếu chưa có → tạo mới với email ảo walkin_<phone>@store.local
+const getOrCreateWalkInCustomer = async (
+    name: string,
+    phone: string
+): Promise<string> => {
+    const existing = await UserModel.findOne({ phoneNumber: phone }).lean();
+    if (existing) return existing._id.toString();
+
+    const created = await UserModel.create({
+        userName: name,
+        email: `walkin_${phone}@store.local`,
+        password: Math.random().toString(36).slice(2, 12), // not used for login
+        phoneNumber: phone,
+        role: UserRole.USER,
+    });
+    return created._id.toString();
+};
 
 type AuthenticatedRequest = Request & {
     user?: { id: string; role: string; branchId?: string };
@@ -74,6 +95,8 @@ export const createWarrantyRequest = async (
             physicalCondition,
             images,
             estimatedDate,
+            walkInName,
+            walkInPhone,
         } = req.body;
 
         // MANAGER/TECHNICIAN: enforce their assigned branch, ignore body branchId
@@ -87,21 +110,35 @@ export const createWarrantyRequest = async (
             bodyBranchId &&
             bodyBranchId !== req.targetBranchId
         ) {
-            return res
-                .status(403)
-                .json({
-                    message:
-                        "You can only create warranty requests for your assigned branch",
-                });
+            return res.status(403).json({
+                message:
+                    "You can only create warranty requests for your assigned branch",
+            });
         }
 
-        const customer = await UserModel.findById(customerId).lean();
-        if (!customer) {
-            return res.status(404).json({ message: "Customer not found" });
+        // Walk-in mode: no customerId supplied → find/create by phone
+        let resolvedCustomerId: string;
+        if (customerId) {
+            const customer = await UserModel.findById(customerId).lean();
+            if (!customer) {
+                return res.status(404).json({ message: "Customer not found" });
+            }
+            resolvedCustomerId = customerId;
+        } else {
+            if (!walkInName?.trim() || !walkInPhone?.trim()) {
+                return res.status(400).json({
+                    message:
+                        "walkInName and walkInPhone are required for walk-in customers",
+                });
+            }
+            resolvedCustomerId = await getOrCreateWalkInCustomer(
+                walkInName.trim(),
+                walkInPhone.trim()
+            );
         }
 
         const data: Record<string, any> = {
-            customerId: toObjectId(customerId),
+            customerId: toObjectId(resolvedCustomerId),
             productId: toObjectId(productId),
             variantId: toObjectId(variantId),
             branchId: toObjectId(effectiveBranchId),
@@ -122,7 +159,7 @@ export const createWarrantyRequest = async (
             "Yêu cầu bảo hành mới",
             `Tiếp nhận thiết bị IMEI/Serial: ${imeiOrSerial}`,
             warrantyRequest._id.toString(),
-            customerId
+            resolvedCustomerId
         );
 
         return res.status(201).json({
@@ -324,12 +361,10 @@ export const addRepairLog = async (
                 .json({ message: "Access denied to this branch's data" });
         }
         if (warranty.status === STATUS_WARRANTY.RETURNED) {
-            return res
-                .status(400)
-                .json({
-                    message:
-                        "Cannot add repair log: device has already been returned to customer",
-                });
+            return res.status(400).json({
+                message:
+                    "Cannot add repair log: device has already been returned to customer",
+            });
         }
 
         const repairLog = await RepairLogModel.create({
@@ -382,6 +417,78 @@ export const getRepairLogs = async (
         return res.status(200).json({ data: logs });
     } catch (error) {
         console.error("getRepairLogs error:", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+// ─── Tra cứu thông tin thiết bị từ IMEI trong kho xuất ──────────────────────
+// Tìm StockExport chứa IMEI → trả về productId, variantId, branchId,
+// orderId và customerId (nếu là đơn online).
+export const imeiStockLookup = async (
+    req: AuthenticatedRequest,
+    res: Response
+) => {
+    try {
+        const imei = (req.query.imei as string)?.trim();
+        if (!imei) {
+            return res
+                .status(400)
+                .json({ message: "Query param 'imei' is required" });
+        }
+
+        // Tìm StockExport chứa IMEI trong bất kỳ item nào
+        const stockExport = await StockExportModel.findOne({
+            "items.imeiList": imei,
+        })
+            .populate("orderId", "userId")
+            .lean();
+
+        if (!stockExport) {
+            return res.status(200).json({ found: false });
+        }
+
+        // Xác định item chứa IMEI
+        const matchedItem = (stockExport.items as any[]).find(
+            (item: any) =>
+                Array.isArray(item.imeiList) && item.imeiList.includes(imei)
+        );
+
+        if (!matchedItem) {
+            return res.status(200).json({ found: false });
+        }
+
+        const result: Record<string, any> = {
+            found: true,
+            productId: matchedItem.productId?.toString(),
+            variantId: matchedItem.variantId?.toString(),
+            branchId: (stockExport.branchId as any)?.toString(),
+            orderId: stockExport.orderId
+                ? ((stockExport.orderId as any)._id?.toString() ??
+                  stockExport.orderId.toString())
+                : null,
+            customerId: null,
+            customerName: null,
+        };
+
+        // Nếu có orderId → lấy customerId từ đơn hàng
+        if (stockExport.orderId) {
+            const orderUserId = (stockExport.orderId as any).userId;
+            if (orderUserId) {
+                const customer = await UserModel.findById(orderUserId)
+                    .select("userName email phoneNumber")
+                    .lean();
+                if (customer) {
+                    result.customerId = customer._id.toString();
+                    result.customerName = customer.userName;
+                    result.customerEmail = (customer as any).email;
+                    result.customerPhone = (customer as any).phoneNumber;
+                }
+            }
+        }
+
+        return res.status(200).json(result);
+    } catch (error) {
+        console.error("imeiStockLookup error:", error);
         return res.status(500).json({ message: "Internal server error" });
     }
 };

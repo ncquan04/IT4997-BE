@@ -12,7 +12,7 @@ export const createWarrantyRequestSchema = yup
             .string()
             .trim()
             .matches(objectIdRegex, "Invalid customerId format")
-            .required("customerId is required"),
+            .optional(), // optional — walk-in customer resolved by server
         orderId: yup
             .string()
             .trim()
@@ -52,6 +52,8 @@ export const createWarrantyRequestSchema = yup
             .required("physicalCondition is required"),
         images: yup.array().of(yup.string().trim().required()).default([]),
         estimatedDate: yup.number().positive().optional(),
+        walkInName: yup.string().trim().optional(),
+        walkInPhone: yup.string().trim().optional(),
     })
     .required();
 
