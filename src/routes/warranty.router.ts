@@ -18,6 +18,7 @@ import {
     addRepairLog,
     getRepairLogs,
     imeiStockLookup,
+    getMyWarranties,
 } from "../services/warranty.service";
 
 const WarrantyRouter = express.Router();
@@ -43,6 +44,9 @@ WarrantyRouter.get(
     verifyBranchScope(BRANCH_SCOPED_ROLES),
     lookupByImei
 );
+
+// Danh sách bảo hành của user đang đăng nhập (customer)
+WarrantyRouter.get("/warranty/my", auth, getMyWarranties);
 
 // Danh sách yêu cầu bảo hành
 WarrantyRouter.get(

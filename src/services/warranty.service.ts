@@ -221,6 +221,53 @@ export const getWarrantyList = async (
     }
 };
 
+// ─── Danh sách bảo hành của user đang đăng nhập ──────────────────────────────
+export const getMyWarranties = async (
+    req: AuthenticatedRequest,
+    res: Response
+) => {
+    try {
+        const userId = req.user!.id;
+        const page = parsePositiveInt(req.query.page as string, 1);
+        const limit = parsePositiveInt(req.query.limit as string, 10);
+        const skip = (page - 1) * limit;
+
+        const filter: Record<string, any> = {
+            customerId: toObjectId(userId),
+        };
+
+        const status =
+            req.query.status !== undefined
+                ? Number(req.query.status)
+                : undefined;
+        if (status !== undefined && !isNaN(status)) filter.status = status;
+
+        const [items, total] = await Promise.all([
+            WarrantyRequestModel.find(filter)
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(limit)
+                .populate("productId", "title")
+                .populate("branchId", "name")
+                .lean(),
+            WarrantyRequestModel.countDocuments(filter),
+        ]);
+
+        return res.status(200).json({
+            data: items,
+            pagination: {
+                page,
+                limit,
+                total,
+                totalPages: Math.ceil(total / limit),
+            },
+        });
+    } catch (error) {
+        console.error("getMyWarranties error:", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+};
+
 // ─── Chi tiết yêu cầu bảo hành ────────────────────────────────────────────────
 export const getWarrantyById = async (
     req: AuthenticatedRequest,
