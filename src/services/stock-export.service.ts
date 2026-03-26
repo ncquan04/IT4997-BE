@@ -3,7 +3,9 @@ import mongoose from "mongoose";
 import BranchInventoryModel from "../models/branch-inventory-model.mongo";
 import BranchModel from "../models/branch-model.mongo";
 import ProductModel from "../models/product-model.mongo";
-import StockExportModel from "../models/stock-export-model.mongo";
+import StockExportModel, {
+    StockExportModelDocument,
+} from "../models/stock-export-model.mongo";
 import { Contacts } from "../shared/contacts";
 import { parsePositiveInt } from "../utils";
 
@@ -24,6 +26,7 @@ export type ImeiAssignment = {
     productId: string;
     variantId: string;
     imeiList: string[];
+    branchId: string;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -34,7 +37,7 @@ export type ImeiAssignment = {
 // ─────────────────────────────────────────────────────────────────────────────
 const validateImeiAvailability = async (
     branchId: string,
-    assignments: ImeiAssignment[],
+    assignments: Omit<ImeiAssignment, "branchId">[],
     session: mongoose.ClientSession
 ) => {
     for (const assignment of assignments) {
@@ -82,7 +85,7 @@ const validateImeiAvailability = async (
 // ─────────────────────────────────────────────────────────────────────────────
 const deductInventory = async (
     branchId: string,
-    assignments: ImeiAssignment[],
+    assignments: Omit<ImeiAssignment, "branchId">[],
     session: mongoose.ClientSession
 ) => {
     for (const assignment of assignments) {
@@ -103,43 +106,59 @@ const deductInventory = async (
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CASE 1 — Called internally from the order shipping endpoint.
-// Creates a StockExport with status=COMPLETED and deducts BranchInventory.
-// Runs entirely inside the caller-provided MongoDB session/transaction.
+// imeiAssignments each carry a branchId so items may span multiple branches.
+// Creates one StockExport per branch (all linked to the same orderId) and
+// deducts BranchInventory for each. Runs inside the caller-provided session.
 // ─────────────────────────────────────────────────────────────────────────────
 export const createStockExportFromOrder = async (
     orderId: string,
-    branchId: string,
     createdBy: string,
     imeiAssignments: ImeiAssignment[],
     session: mongoose.ClientSession
 ) => {
-    await validateImeiAvailability(branchId, imeiAssignments, session);
+    // Group assignments by branchId
+    const byBranch = new Map<string, Omit<ImeiAssignment, "branchId">[]>();
+    for (const a of imeiAssignments) {
+        const list = byBranch.get(a.branchId) ?? [];
+        list.push({
+            productId: a.productId,
+            variantId: a.variantId,
+            imeiList: a.imeiList,
+        });
+        byBranch.set(a.branchId, list);
+    }
 
-    const items = imeiAssignments.map((a) => ({
-        productId: toObjectId(a.productId),
-        variantId: toObjectId(a.variantId),
-        quantity: a.imeiList.length,
-        imeiList: a.imeiList,
-    }));
+    const stockExports: StockExportModelDocument[] = [];
+    for (const [branchId, assignments] of byBranch) {
+        await validateImeiAvailability(branchId, assignments, session);
 
-    const [stockExport] = await StockExportModel.create(
-        [
-            {
-                branchId: toObjectId(branchId),
-                items,
-                reason: Contacts.ExportReason.ONLINE_SALE,
-                orderId: toObjectId(orderId),
-                createdBy: toObjectId(createdBy),
-                note: "",
-                status: STATUS_STOCK.COMPLETED,
-            },
-        ],
-        { session }
-    );
+        const items = assignments.map((a) => ({
+            productId: toObjectId(a.productId),
+            variantId: toObjectId(a.variantId),
+            quantity: a.imeiList.length,
+            imeiList: a.imeiList,
+        }));
 
-    await deductInventory(branchId, imeiAssignments, session);
+        const [stockExport] = await StockExportModel.create(
+            [
+                {
+                    branchId: toObjectId(branchId),
+                    items,
+                    reason: Contacts.ExportReason.ONLINE_SALE,
+                    orderId: toObjectId(orderId),
+                    createdBy: toObjectId(createdBy),
+                    note: "",
+                    status: STATUS_STOCK.COMPLETED,
+                },
+            ],
+            { session }
+        );
 
-    return stockExport;
+        await deductInventory(branchId, assignments, session);
+        stockExports.push(stockExport);
+    }
+
+    return stockExports;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -388,36 +407,37 @@ export const reverseInventoryForOrder = async (
     orderId: string,
     session: mongoose.ClientSession
 ) => {
-    const stockExport = await StockExportModel.findOne(
+    const stockExports = await StockExportModel.find(
         { orderId: toObjectId(orderId), status: STATUS_STOCK.COMPLETED },
         null,
         { session }
     );
 
-    if (!stockExport) {
-        // No completed export found — nothing to reverse (e.g. order was never shipped)
+    if (stockExports.length === 0) {
+        // No completed exports found — nothing to reverse (e.g. order was never shipped)
         return null;
     }
 
-    for (const item of stockExport.items) {
-        await BranchInventoryModel.findOneAndUpdate(
-            {
-                branchId: stockExport.branchId,
-                productId: item.productId,
-                variantId: item.variantId,
-            },
-            {
-                $inc: { quantity: item.imeiList?.length ?? item.quantity },
-                $push: { imeiList: { $each: item.imeiList ?? [] } },
-            },
-            { session }
-        );
+    for (const stockExport of stockExports) {
+        for (const item of stockExport.items) {
+            await BranchInventoryModel.findOneAndUpdate(
+                {
+                    branchId: stockExport.branchId,
+                    productId: item.productId,
+                    variantId: item.variantId,
+                },
+                {
+                    $inc: { quantity: item.imeiList?.length ?? item.quantity },
+                    $push: { imeiList: { $each: item.imeiList ?? [] } },
+                },
+                { session }
+            );
+        }
+        stockExport.status = STATUS_STOCK.CANCELLED as any;
+        await stockExport.save({ session });
     }
 
-    stockExport.status = STATUS_STOCK.CANCELLED as any;
-    await stockExport.save({ session });
-
-    return stockExport;
+    return stockExports;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -469,13 +489,12 @@ export const updateStockExportStatus = async (req: Request, res: Response) => {
         }
 
         if (status === STATUS_STOCK.COMPLETED) {
-            const assignments: ImeiAssignment[] = stockExport.items.map(
-                (item: any) => ({
+            const assignments: Omit<ImeiAssignment, "branchId">[] =
+                stockExport.items.map((item: any) => ({
                     productId: String(item.productId),
                     variantId: String(item.variantId),
                     imeiList: item.imeiList ?? [],
-                })
-            );
+                }));
 
             await validateImeiAvailability(
                 String(stockExport.branchId),

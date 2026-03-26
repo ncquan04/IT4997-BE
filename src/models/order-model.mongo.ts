@@ -5,6 +5,7 @@ import { productTableName } from "./product-model.mongo";
 import { Contacts } from "../shared/contacts";
 import { userTableName } from "./user-model.mongo";
 import { branchTableName } from "./branch-model.mongo";
+import { IOrderImeiAssignment } from "../shared/models/order-model";
 
 const STATUS_ORDER = Contacts.Status.Order;
 export const orderTableName = "Order";
@@ -38,6 +39,20 @@ const productItemSchema = new Schema<IProductItem>(
     { _id: false }
 );
 
+const imeiAssignmentSchema = new Schema<IOrderImeiAssignment>(
+    {
+        productId: { type: Schema.Types.ObjectId as any, required: true },
+        variantId: { type: Schema.Types.ObjectId as any, required: true },
+        branchId: {
+            type: Schema.Types.ObjectId as any,
+            ref: branchTableName,
+            required: true,
+        },
+        imeiList: { type: [String], default: [] },
+    },
+    { _id: false }
+);
+
 const orderSchema = new Schema<OrderDocument>(
     {
         listProduct: { type: [productItemSchema], required: true },
@@ -63,6 +78,7 @@ const orderSchema = new Schema<OrderDocument>(
             required: false,
             default: null,
         },
+        imeiAssignments: { type: [imeiAssignmentSchema], default: [] },
     },
     { timestamps: true, versionKey: false }
 );

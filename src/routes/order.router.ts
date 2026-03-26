@@ -5,24 +5,102 @@ import { verifyBranchScope } from "../middlewares/verifyBranchScope";
 import { UserRole } from "../shared/models/user-model";
 import { orderServices } from "../services/order.service";
 import { validate } from "../middlewares/validate";
-import {
-    changeOrderSchema,
-    createOrderSchema,
-    shipOrderSchema,
-} from "../dto/order.dto";
+import { changeOrderSchema, createOrderSchema } from "../dto/order.dto";
 import {
     createStockExportFromOrder,
     reverseInventoryForOrder,
     ImeiAssignment,
 } from "../services/stock-export.service";
 import BranchInventoryModel from "../models/branch-inventory-model.mongo";
+import OrderModel from "../models/order-model.mongo";
 import mongoose from "mongoose";
 import { Contacts } from "../shared/contacts";
-import { IProductItem } from "../shared/models/order-model";
+import {
+    IProductItem,
+    IOrderImeiAssignment,
+} from "../shared/models/order-model";
 import { notificationService } from "../services/notification.service";
 
 const STATUS_ORDER = Contacts.Status.Order;
 const PAYMENT_STATUS = Contacts.Status.Payment;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Auto-assign IMEIs for an order at checkout time.
+// Iterates through branchPriority in order; for each item takes IMEIs greedily
+// from the nearest branch that has stock, spilling to the next if needed.
+// Throws NOT_ENOUGH_STOCK:<title>:... if total inventory across all branches
+// cannot satisfy the requested quantity.
+// ─────────────────────────────────────────────────────────────────────────────
+const autoAssignImeis = async (
+    listProduct: IProductItem[],
+    branchPriority: string[],
+    session: mongoose.ClientSession
+): Promise<ImeiAssignment[]> => {
+    const result: ImeiAssignment[] = [];
+
+    for (const item of listProduct) {
+        let remaining = item.quantity;
+
+        // If caller provided no priority list, fall back to all branches with stock
+        let branchesToTry = branchPriority;
+        if (branchesToTry.length === 0) {
+            const inventories = await BranchInventoryModel.find(
+                {
+                    productId: new mongoose.Types.ObjectId(
+                        String(item.productId)
+                    ),
+                    variantId: new mongoose.Types.ObjectId(
+                        String(item.variantId)
+                    ),
+                    quantity: { $gt: 0 },
+                },
+                { branchId: 1 }
+            )
+                .session(session)
+                .lean();
+            branchesToTry = inventories.map((inv) => String(inv.branchId));
+        }
+
+        for (const branchId of branchesToTry) {
+            if (remaining === 0) break;
+
+            const inventory = await BranchInventoryModel.findOne(
+                {
+                    branchId: new mongoose.Types.ObjectId(branchId),
+                    productId: new mongoose.Types.ObjectId(
+                        String(item.productId)
+                    ),
+                    variantId: new mongoose.Types.ObjectId(
+                        String(item.variantId)
+                    ),
+                },
+                { imeiList: 1 }
+            )
+                .session(session)
+                .lean();
+
+            if (!inventory?.imeiList?.length) continue;
+
+            const available = inventory.imeiList as string[];
+            const take = Math.min(remaining, available.length);
+            result.push({
+                productId: String(item.productId),
+                variantId: String(item.variantId),
+                branchId,
+                imeiList: available.slice(0, take),
+            });
+            remaining -= take;
+        }
+
+        if (remaining > 0) {
+            throw new Error(
+                `NOT_ENOUGH_STOCK:${item.title}:available=${item.quantity - remaining}:requested=${item.quantity}`
+            );
+        }
+    }
+
+    return result;
+};
 
 const OrderRouter = express.Router();
 
@@ -110,6 +188,8 @@ OrderRouter.post(
     auth,
     validate(createOrderSchema),
     async (req, res) => {
+        const session = await mongoose.startSession();
+        session.startTransaction();
         try {
             const {
                 listProduct,
@@ -118,50 +198,50 @@ OrderRouter.post(
                 toAddress,
                 numberPhone,
                 userName,
+                branchPriority = [],
             } = req.body;
             const userId = (req as any).user.id;
-            if (!userId) {
-                console.log("userId not found");
-            }
 
-            // Check total stock across all branches for each item
-            for (const item of listProduct as IProductItem[]) {
-                const agg = await BranchInventoryModel.aggregate([
+            // Auto-assign IMEIs from branches in priority order (nearest first)
+            const imeiAssignments = await autoAssignImeis(
+                listProduct as IProductItem[],
+                branchPriority as string[],
+                session
+            );
+
+            const [newOrder] = await OrderModel.create(
+                [
                     {
-                        $match: {
-                            productId: new mongoose.Types.ObjectId(
-                                item.productId
-                            ),
-                            variantId: new mongoose.Types.ObjectId(
-                                item.variantId
-                            ),
-                        },
+                        userId: new mongoose.Types.ObjectId(userId),
+                        listProduct: listProduct as IProductItem[],
+                        sumPrice,
+                        note: note ?? "",
+                        toAddress,
+                        numberPhone,
+                        userName,
+                        statusOrder: STATUS_ORDER.ORDERED,
+                        imeiAssignments,
                     },
-                    { $group: { _id: null, totalQty: { $sum: "$quantity" } } },
-                ]);
-                const totalQty: number = agg[0]?.totalQty ?? 0;
-                if (totalQty < item.quantity) {
-                    return res.status(400).json({
-                        message: `Not enough stock for "${item.title}". Available: ${totalQty}, requested: ${item.quantity}`,
-                    });
-                }
-            }
+                ],
+                { session }
+            );
 
-            const newOrder = await orderServices.createOrder({
-                _id: "",
-                userId,
-                listProduct: listProduct as IProductItem[],
-                sumPrice,
-                note,
-                toAddress,
-                numberPhone,
-                userName,
-                statusOrder: STATUS_ORDER.ORDERED,
-            });
+            await session.commitTransaction();
             return res.status(200).json(newOrder);
         } catch (err: any) {
+            await session.abortTransaction();
             console.log("create order error:", err);
-            return res.status(500).json("Internal server error");
+            if (err.message && err.message.startsWith("NOT_ENOUGH_STOCK:")) {
+                const [, title, avail, reqPart] = err.message.split(":");
+                const available = avail?.split("=")[1];
+                const requested = reqPart?.split("=")[1];
+                return res.status(400).json({
+                    message: `Not enough stock for "${title}". Available: ${available}, requested: ${requested}`,
+                });
+            }
+            return res.status(500).json({ message: "Internal server error" });
+        } finally {
+            session.endSession();
         }
     }
 );
@@ -270,23 +350,19 @@ OrderRouter.get(
 
 /**
  * POST /api/orders/:id/ship
- * Admin chuyển order sang SHIPPING, cung cấp IMEI cụ thể cho từng sản phẩm.
- * Tạo StockExport COMPLETED + deduct BranchInventory trong cùng 1 transaction.
+ * Admin chuyển order sang SHIPPING.
+ * IMEI assignments đã được lưu trong Order lúc checkout — không cần cung cấp lại.
+ * Tạo StockExport COMPLETED (1 record/branch) + deduct BranchInventory trong cùng 1 transaction.
  */
 OrderRouter.post(
     "/orders/:id/ship",
     auth,
     verifyRole([UserRole.ADMIN, UserRole.MANAGER, UserRole.WAREHOUSE]),
-    validate(shipOrderSchema),
     async (req: any, res: any) => {
         const session = await mongoose.startSession();
         session.startTransaction();
         try {
             const orderId = req.params.id;
-            const { imeiAssignments, branchId: bodyBranchId } = req.body as {
-                imeiAssignments: ImeiAssignment[];
-                branchId?: string;
-            };
             const userId: string = req.user.id;
 
             if (!mongoose.isValidObjectId(orderId)) {
@@ -294,11 +370,7 @@ OrderRouter.post(
                 return res.status(400).json({ message: "Invalid order id" });
             }
 
-            const order = await (
-                await import("../models/order-model.mongo")
-            ).default
-                .findById(orderId)
-                .session(session);
+            const order = await OrderModel.findById(orderId).session(session);
 
             if (!order) {
                 await session.abortTransaction();
@@ -312,54 +384,28 @@ OrderRouter.post(
                 });
             }
 
-            // Resolve branchId: order.branchId → body branchId → user's branchId
-            const effectiveBranchId = order.branchId
-                ? String(order.branchId)
-                : (bodyBranchId ?? req.user.branchId ?? "");
-
-            if (
-                !effectiveBranchId ||
-                !mongoose.isValidObjectId(effectiveBranchId)
-            ) {
+            const storedAssignments = (order as any).imeiAssignments as
+                | IOrderImeiAssignment[]
+                | undefined;
+            if (!storedAssignments || storedAssignments.length === 0) {
                 await session.abortTransaction();
                 return res.status(400).json({
-                    message:
-                        "Branch is required to ship. Please assign a branch to this order.",
+                    message: "No IMEI assignments found for this order.",
                 });
             }
 
-            // Persist branchId on the order if it wasn't set yet
-            if (!order.branchId) {
-                order.branchId = new mongoose.Types.ObjectId(
-                    effectiveBranchId
-                ) as any;
-            }
+            const imeiAssignments: ImeiAssignment[] = storedAssignments.map(
+                (a) => ({
+                    productId: String(a.productId),
+                    variantId: String(a.variantId),
+                    branchId: String(a.branchId),
+                    imeiList: a.imeiList,
+                })
+            );
 
-            // Validate that imeiAssignments cover all products in the order
-            for (const item of order.listProduct) {
-                const assignment = imeiAssignments.find(
-                    (a) =>
-                        a.productId === String(item.productId) &&
-                        a.variantId === String(item.variantId)
-                );
-                if (!assignment) {
-                    await session.abortTransaction();
-                    return res.status(400).json({
-                        message: `Missing IMEI assignment for productId=${item.productId} variantId=${item.variantId}`,
-                    });
-                }
-                if (assignment.imeiList.length !== item.quantity) {
-                    await session.abortTransaction();
-                    return res.status(400).json({
-                        message: `IMEI count (${assignment.imeiList.length}) does not match order quantity (${item.quantity}) for productId=${item.productId}`,
-                    });
-                }
-            }
-
-            // Create StockExport + deduct inventory inside the transaction
+            // Create StockExport per branch + deduct inventory inside the transaction
             await createStockExportFromOrder(
                 orderId,
-                effectiveBranchId,
                 userId,
                 imeiAssignments,
                 session

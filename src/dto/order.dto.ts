@@ -1,5 +1,7 @@
 import * as yup from "yup";
 
+const objectIdRegex = /^[0-9a-fA-F]{24}$/;
+
 export const productItemSchema = yup.object({
     productId: yup.string().required("productId is required"),
 
@@ -47,14 +49,24 @@ export const createOrderSchema = yup.object({
     userName: yup.string().required("userName is required"),
 
     numberPhone: yup.string().required("numberPhone is required"),
+
+    branchPriority: yup
+        .array()
+        .of(
+            yup
+                .string()
+                .trim()
+                .matches(objectIdRegex, "Invalid branchId in branchPriority")
+                .required()
+        )
+        .optional()
+        .default([]),
 });
 
 export const changeOrderSchema = yup.object({
     orderId: yup.string().required("orderId is required"),
     statusOrder: yup.number().required("statusOrder is required"),
 });
-
-const objectIdRegex = /^[0-9a-fA-F]{24}$/;
 
 const imeiAssignmentSchema = yup.object({
     productId: yup
