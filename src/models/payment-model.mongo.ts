@@ -46,6 +46,8 @@ const paymentSchema = new Schema<PaymentDocument>(
             required: true,
             default: STATUS_PAYMENT.UNPAID,
         },
+        couponCode: { type: String, default: null },
+        couponDiscount: { type: Number, default: 0 },
     },
     { timestamps: true, versionKey: false }
 );

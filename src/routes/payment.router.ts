@@ -9,6 +9,7 @@ import {
     paymentService,
 } from "../services/paymeny.service";
 import { notificationService } from "../services/notification.service";
+import { couponService } from "../services/coupon.service";
 
 const PAYMENT_METHOD = Contacts.PaymentMethod;
 const DELIVERY = Contacts.Delivery;
@@ -21,6 +22,9 @@ PaymentRouter.post("/payment/creator", auth, async (req, res) => {
         const method = String(req.query["method"] ?? "");
         const delivery = String(req.query["delivery"] ?? "");
         const orderId = String(req.query.order ?? "");
+        const couponCode = req.query["coupon"]
+            ? String(req.query["coupon"])
+            : null;
         if (!orderId) {
             return res.status(400).json("order_id is required");
         }
@@ -41,6 +45,20 @@ PaymentRouter.post("/payment/creator", auth, async (req, res) => {
             0
         );
 
+        // Validate coupon server-side if provided
+        let couponDiscount = 0;
+        let validatedCouponCode: string | null = null;
+        if (couponCode) {
+            const couponResult = await couponService.validateCoupon(
+                couponCode,
+                totalMoney
+            );
+            couponDiscount = couponResult.discountAmount;
+            validatedCouponCode = couponCode.toUpperCase();
+            // Atomically increment usedCount
+            await couponService.incrementUsedCount(couponCode);
+        }
+
         const urlRedirect = await paymentService.paymentTransctip(
             method,
             orderRes[0]
@@ -52,10 +70,12 @@ PaymentRouter.post("/payment/creator", auth, async (req, res) => {
                 userId: (req as any).user.id,
                 orderId: orderRes[0]._id,
                 method: method ?? PAYMENT_METHOD.COD,
-                totalMoney,
+                totalMoney: totalMoney - couponDiscount,
                 discount: totalDiscount,
                 delivery: delivery || DELIVERY.EXPRESS,
                 status: STATUS_PAYMENT.UNPAID,
+                couponCode: validatedCouponCode ?? undefined,
+                couponDiscount,
             }),
             orderServices.updateOrder(
                 { statusOrder: Contacts.Status.Order.PROCESSING },

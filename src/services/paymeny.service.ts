@@ -110,6 +110,8 @@ class PaymentService {
         discount,
         delivery,
         status,
+        couponCode,
+        couponDiscount,
     }: IPayment) {
         const paymentRes = await PaymentModel.findOne({
             orderId,
@@ -121,6 +123,8 @@ class PaymentService {
             paymentRes.discount = discount;
             paymentRes.delivery = delivery;
             paymentRes.status = status;
+            if (couponCode) paymentRes.couponCode = couponCode;
+            if (couponDiscount) paymentRes.couponDiscount = couponDiscount;
             return await paymentRes.save();
         }
 
@@ -132,6 +136,8 @@ class PaymentService {
             discount,
             delivery,
             status,
+            couponCode: couponCode ?? null,
+            couponDiscount: couponDiscount ?? 0,
         });
     }
     async updatePaymentRes(params: Partial<IPayment>, orderId: string) {
