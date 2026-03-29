@@ -28,6 +28,7 @@ import StockExportRouter from "./routes/stock-export.router";
 import SupplierRouter from "./routes/supplier.router";
 import WarrantyRouter from "./routes/warranty.router";
 import CouponRouter from "./routes/coupon.router";
+import DiscountProgramRouter from "./routes/discount-program.router";
 
 const app = express();
 const httpServer = createServer(app);
@@ -83,6 +84,7 @@ try {
     app.use("/api", SupplierRouter);
     app.use("/api", WarrantyRouter);
     app.use("/api", CouponRouter);
+    app.use("/api", DiscountProgramRouter);
     app.use("/api", async function (req, res) {
         res.status(200).json("hello");
     });

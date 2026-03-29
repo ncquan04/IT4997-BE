@@ -10,6 +10,8 @@ import { getArray, setArray, deleteKeysByPattern } from "../cache/redisUtils";
 import { notificationService } from "./notification.service";
 import { getCategoryAndDescendantIds } from "../utils/category-tree";
 import { ElasticSearch } from "../../elasticsearch/elastic.client";
+import discountProgramService from "./discount-program.service";
+import { IDiscountProgram } from "../shared/models/discount-program-model";
 
 const STATUS_EVALUATION = Contacts.Status.Evaluation;
 const LIMIT = 20;
@@ -72,6 +74,31 @@ const getProductEffectivePrice = (product: IProduct): number | null => {
         }
         return Math.min(minPrice, price);
     }, null);
+};
+
+/**
+ * Enrich each variant of a product list with `effectiveDiscountPrice`
+ * based on currently active discount programs (single DB query for all programs).
+ */
+const enrichProductsWithDiscounts = (
+    products: IProduct[],
+    programs: IDiscountProgram[]
+): IProduct[] => {
+    if (programs.length === 0) return products;
+    return products.map((product) => ({
+        ...product,
+        variants: product.variants.map((variant) => {
+            const effectiveDiscountPrice =
+                discountProgramService.computeEffectivePrice(
+                    String((product as any)._id),
+                    String(product.categoryId),
+                    variant.price,
+                    programs
+                );
+            if (effectiveDiscountPrice === null) return variant;
+            return { ...variant, effectiveDiscountPrice };
+        }),
+    }));
 };
 
 const getAuthenticatedUser = (req: Request): AuthenticatedUser | null => {
@@ -268,9 +295,13 @@ const getAllProductsByScope = async (
         }
 
         const total = processProduct.length;
-        const pageData = processProduct
+        const pageSlice = processProduct
             .slice(skip, skip + limitNum)
             .map(({ computedPrice, ...product }) => product);
+
+        const programs = await discountProgramService.getActivePrograms();
+        const pageData = enrichProductsWithDiscounts(pageSlice, programs);
+
         res.status(200).json({
             data: pageData,
             pagination: {
@@ -300,7 +331,14 @@ export const getProductById = async (req: Request, res: Response) => {
         if (!product) {
             return res.status(404).json({ message: "Product not found" });
         }
-        res.status(200).json(product);
+
+        const programs = await discountProgramService.getActivePrograms();
+        const [enriched] = enrichProductsWithDiscounts(
+            [product as unknown as IProduct],
+            programs
+        );
+
+        res.status(200).json(enriched);
     } catch (error) {
         res.status(500).json({ message: "Failed to fetch product", error });
     }
