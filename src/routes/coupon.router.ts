@@ -87,13 +87,17 @@ CouponRouter.delete(
 // ── User: validate coupon (does NOT consume it) ──────────────────────────────
 CouponRouter.post("/coupons/validate", auth, async (req, res) => {
     try {
-        const { code, orderTotal } = req.body;
+        const { code, orderTotal, items } = req.body;
         if (!code || typeof orderTotal !== "number") {
             return res
                 .status(400)
                 .json({ message: "code and orderTotal are required" });
         }
-        const result = await couponService.validateCoupon(code, orderTotal);
+        const result = await couponService.validateCoupon(
+            code,
+            orderTotal,
+            items
+        );
         return res.status(200).json(result);
     } catch (err: any) {
         const msg: string = err.message ?? "Unknown error";
@@ -101,6 +105,7 @@ CouponRouter.post("/coupons/validate", auth, async (req, res) => {
             msg === "COUPON_NOT_FOUND" ||
             msg === "COUPON_EXPIRED" ||
             msg === "COUPON_USAGE_EXCEEDED" ||
+            msg === "COUPON_NO_APPLICABLE_PRODUCTS" ||
             msg.startsWith("COUPON_MIN_ORDER")
         ) {
             return res.status(400).json({ message: msg });

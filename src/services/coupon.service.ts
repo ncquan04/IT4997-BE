@@ -43,7 +43,8 @@ class CouponService {
      */
     async validateCoupon(
         code: string,
-        orderTotal: number
+        orderTotal: number,
+        items?: { productId: string; price: number; quantity: number }[]
     ): Promise<{ discountAmount: number; couponId: string }> {
         const coupon = await CouponModel.findOne({
             code: code.toUpperCase(),
@@ -59,19 +60,44 @@ class CouponService {
         if (coupon.maxUsage > 0 && coupon.usedCount >= coupon.maxUsage) {
             throw new Error("COUPON_USAGE_EXCEEDED");
         }
+        // minOrderValue always checked against the full order total
         if (coupon.minOrderValue > 0 && orderTotal < coupon.minOrderValue) {
             throw new Error(`COUPON_MIN_ORDER:${coupon.minOrderValue}`);
         }
 
+        // Determine the base amount for discount calculation.
+        // If coupon restricts to specific products, only sum those items.
+        let discountBase = orderTotal;
+        if (
+            coupon.applicableProducts &&
+            coupon.applicableProducts.length > 0 &&
+            items &&
+            items.length > 0
+        ) {
+            const applicableSet = new Set(
+                coupon.applicableProducts.map((id) => id.toString())
+            );
+            const matchingItems = items.filter((item) =>
+                applicableSet.has(item.productId)
+            );
+            if (matchingItems.length === 0) {
+                throw new Error("COUPON_NO_APPLICABLE_PRODUCTS");
+            }
+            discountBase = matchingItems.reduce(
+                (sum, item) => sum + item.price * item.quantity,
+                0
+            );
+        }
+
         let discountAmount = 0;
         if (coupon.type === "percent") {
-            discountAmount = Math.floor((orderTotal * coupon.value) / 100);
+            discountAmount = Math.floor((discountBase * coupon.value) / 100);
             if (coupon.maxDiscount > 0) {
                 discountAmount = Math.min(discountAmount, coupon.maxDiscount);
             }
         } else {
             // fixed
-            discountAmount = Math.min(coupon.value, orderTotal);
+            discountAmount = Math.min(coupon.value, discountBase);
         }
 
         return { discountAmount, couponId: String(coupon._id) };

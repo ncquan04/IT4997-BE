@@ -26,6 +26,7 @@ const couponSchema = new Schema<CouponModelDocument>(
         usedCount: { type: Number, required: true, min: 0, default: 0 },
         expiredAt: { type: Number, required: true },
         isActive: { type: Boolean, required: true, default: true },
+        applicableProducts: { type: [String], default: [] },
     },
     { versionKey: false, timestamps: true }
 );

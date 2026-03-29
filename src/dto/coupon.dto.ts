@@ -39,6 +39,7 @@ export const createCouponSchema = yup.object({
         .min(Date.now(), "expiredAt must be in the future")
         .required("expiredAt is required"),
     isActive: yup.boolean().default(true),
+    applicableProducts: yup.array().of(yup.string()).default([]),
 });
 
 export const updateCouponSchema = yup.object({
@@ -64,4 +65,5 @@ export const updateCouponSchema = yup.object({
         .min(0, "maxUsage must be >= 0"),
     expiredAt: yup.number().typeError("expiredAt must be a timestamp"),
     isActive: yup.boolean(),
+    applicableProducts: yup.array().of(yup.string()),
 });

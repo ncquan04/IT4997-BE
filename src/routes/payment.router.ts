@@ -41,9 +41,16 @@ PaymentRouter.post("/payment/creator", auth, async (req, res) => {
         const totalMoney = orderRes[0].sumPrice;
         const listProduct = orderRes[0].listProduct;
         const totalDiscount = listProduct.reduce(
-            (sum, item) => sum + (item.discount ?? 0),
+            (sum: number, item: any) => sum + (item.discount ?? 0),
             0
         );
+
+        // Build items array for product-specific coupon validation
+        const orderItems = listProduct.map((item: any) => ({
+            productId: item.productId,
+            price: item.price,
+            quantity: item.quantity,
+        }));
 
         // Validate coupon server-side if provided
         let couponDiscount = 0;
@@ -51,7 +58,8 @@ PaymentRouter.post("/payment/creator", auth, async (req, res) => {
         if (couponCode) {
             const couponResult = await couponService.validateCoupon(
                 couponCode,
-                totalMoney
+                totalMoney,
+                orderItems
             );
             couponDiscount = couponResult.discountAmount;
             validatedCouponCode = couponCode.toUpperCase();
