@@ -19,6 +19,8 @@ import {
     getRepairLogs,
     imeiStockLookup,
     getMyWarranties,
+    repairLogHistory,
+    publicRepairHistory,
 } from "../services/warranty.service";
 
 const WarrantyRouter = express.Router();
@@ -26,6 +28,9 @@ const WarrantyRouter = express.Router();
 // TECHNICIAN cũng thuộc branch scope (giống MANAGER)
 const ALLOWED_ROLES = [UserRole.ADMIN, UserRole.MANAGER, UserRole.TECHNICIAN];
 const BRANCH_SCOPED_ROLES = [UserRole.MANAGER, UserRole.TECHNICIAN];
+
+// Tra cứu lịch sử sửa chữa công khai theo IMEI — không cần auth
+WarrantyRouter.get("/warranty/public/repair-history", publicRepairHistory);
 
 // Tra cứu thông tin sản phẩm từ IMEI trong kho xuất
 WarrantyRouter.get(
@@ -47,6 +52,15 @@ WarrantyRouter.get(
 
 // Danh sách bảo hành của user đang đăng nhập (customer)
 WarrantyRouter.get("/warranty/my", auth, getMyWarranties);
+
+// Lịch sử sửa chữa toàn bộ theo IMEI/Serial
+WarrantyRouter.get(
+    "/warranty/repair-logs/history",
+    auth,
+    verifyRole(ALLOWED_ROLES),
+    verifyBranchScope(BRANCH_SCOPED_ROLES),
+    repairLogHistory
+);
 
 // Danh sách yêu cầu bảo hành
 WarrantyRouter.get(

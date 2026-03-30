@@ -468,6 +468,85 @@ export const getRepairLogs = async (
     }
 };
 
+// ─── Lịch sử sửa chữa toàn bộ theo IMEI/Serial ──────────────────────────────
+export const repairLogHistory = async (
+    req: AuthenticatedRequest,
+    res: Response
+) => {
+    try {
+        const imei = (req.query.imei as string)?.trim();
+        if (!imei) {
+            return res
+                .status(400)
+                .json({ message: "Query param 'imei' is required" });
+        }
+
+        const filter: Record<string, any> = { imeiOrSerial: imei };
+
+        // MANAGER/TECHNICIAN: chỉ xem log của chi nhánh mình
+        // (lọc qua warrantyRequestId.branchId sau populate)
+        const logs = await RepairLogModel.find(filter)
+            .sort({ createdAt: 1 })
+            .populate({
+                path: "warrantyRequestId",
+                select: "status branchId createdAt imeiOrSerial",
+                populate: { path: "branchId", select: "name" },
+            })
+            .populate("technicianId", "userName email")
+            .lean();
+
+        // Branch-scope filter cho MANAGER/TECHNICIAN
+        const targetBranchId = req.targetBranchId;
+        const filtered = targetBranchId
+            ? logs.filter((log) => {
+                  const wr = log.warrantyRequestId as any;
+                  const bid = wr?.branchId?._id ?? wr?.branchId;
+                  return bid?.toString() === targetBranchId;
+              })
+            : logs;
+
+        return res.status(200).json({ data: filtered });
+    } catch (error) {
+        console.error("repairLogHistory error:", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+// ─── Tra cứu lịch sử sửa chữa công khai theo IMEI (không cần auth) ───────────
+// Chỉ trả thông tin thao tác, KHÔNG lộ: tên KTV, chi phí, warrantyRequestId,
+// thông tin khách hàng.
+export const publicRepairHistory = async (req: Request, res: Response) => {
+    try {
+        const imei = (req.query.imei as string)?.trim();
+        if (!imei) {
+            return res
+                .status(400)
+                .json({ message: "Query param 'imei' is required" });
+        }
+
+        const logs = await RepairLogModel.find({ imeiOrSerial: imei })
+            .sort({ createdAt: 1 })
+            .select("action replacedParts note createdAt imeiOrSerial")
+            .lean();
+
+        if (logs.length === 0) {
+            return res.status(200).json({ found: false, imei, data: [] });
+        }
+
+        const sanitized = logs.map((log) => ({
+            date: (log as any).createdAt,
+            action: log.action,
+            replacedParts: (log.replacedParts as string[]) ?? [],
+            note: log.note ?? "",
+        }));
+
+        return res.status(200).json({ found: true, imei, data: sanitized });
+    } catch (error) {
+        console.error("publicRepairHistory error:", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+};
+
 // ─── Tra cứu thông tin thiết bị từ IMEI trong kho xuất ──────────────────────
 // Tìm StockExport chứa IMEI → trả về productId, variantId, branchId,
 // orderId và customerId (nếu là đơn online).
