@@ -8,6 +8,7 @@ import { momoService } from "./momo.service";
 import { orderServices } from "./order.service";
 import mongoose from "mongoose";
 import { notificationService } from "./notification.service";
+import { awardPoints, redeemPoints } from "./loyalty.service";
 
 const PAYMENT_METHOD = Contacts.PaymentMethod;
 const STATUS_PAYMENT_TRANSCRIPT = Contacts.Status.Payment_transcript;
@@ -112,6 +113,9 @@ class PaymentService {
         status,
         couponCode,
         couponDiscount,
+        memberDiscount,
+        pointsRedeemed,
+        pointsDiscount,
     }: IPayment) {
         const paymentRes = await PaymentModel.findOne({
             orderId,
@@ -125,8 +129,19 @@ class PaymentService {
             paymentRes.status = status;
             if (couponCode) paymentRes.couponCode = couponCode;
             if (couponDiscount) paymentRes.couponDiscount = couponDiscount;
+            if (memberDiscount) paymentRes.memberDiscount = memberDiscount;
             return await paymentRes.save();
         }
+
+        // Thực hiện đổi điểm nếu user dùng điểm tích lũy
+        const actualPointsRedeemed =
+            pointsRedeemed && pointsRedeemed > 0
+                ? await redeemPoints(
+                      userId.toString(),
+                      pointsRedeemed,
+                      orderId.toString()
+                  ).then(() => pointsRedeemed)
+                : 0;
 
         return await PaymentModel.create({
             userId,
@@ -138,6 +153,10 @@ class PaymentService {
             status,
             couponCode: couponCode ?? null,
             couponDiscount: couponDiscount ?? 0,
+            memberDiscount: memberDiscount ?? 0,
+            pointsRedeemed: actualPointsRedeemed,
+            pointsDiscount: pointsDiscount ?? 0,
+            pointsEarned: 0, // sẽ cập nhật khi payment xác nhận PAID
         });
     }
     async updatePaymentRes(params: Partial<IPayment>, orderId: string) {
@@ -175,6 +194,27 @@ class PaymentService {
                             { statusOrder: STATUS_ORDER.PROCESSING },
                             orderId
                         );
+
+                        // Tích điểm loyalty: tính trên số tiền thực trả
+                        const netPaid =
+                            paymentUpdated.totalMoney -
+                            (paymentUpdated.discount ?? 0) -
+                            (paymentUpdated.couponDiscount ?? 0) -
+                            (paymentUpdated.memberDiscount ?? 0) -
+                            (paymentUpdated.pointsDiscount ?? 0);
+                        if (netPaid > 0) {
+                            const earned = Math.floor(netPaid / 100);
+                            await awardPoints(
+                                paymentUpdated.userId.toString(),
+                                netPaid,
+                                orderId
+                            );
+                            await PaymentModel.findByIdAndUpdate(
+                                paymentUpdated._id,
+                                { $set: { pointsEarned: earned } }
+                            );
+                        }
+
                         notificationService.pushNotification(
                             "PAYMENT",
                             "Payment paid",
@@ -214,6 +254,36 @@ class PaymentService {
                     { statusOrder: STATUS_ORDER.PROCESSING },
                     orderId
                 );
+
+                // Tích điểm loyalty cho COD (tin tưởng đơn đặt hàng)
+                const codPayment = await PaymentModel.findOneAndUpdate(
+                    {
+                        orderId: new mongoose.Types.ObjectId(orderId),
+                        status: STATUS_PAYMENT.UNPAID,
+                    },
+                    { $set: { status: STATUS_PAYMENT.PAID } },
+                    { new: true }
+                );
+                if (codPayment) {
+                    const netPaid =
+                        codPayment.totalMoney -
+                        (codPayment.discount ?? 0) -
+                        (codPayment.couponDiscount ?? 0) -
+                        (codPayment.memberDiscount ?? 0) -
+                        (codPayment.pointsDiscount ?? 0);
+                    if (netPaid > 0) {
+                        const earned = Math.floor(netPaid / 100);
+                        await awardPoints(
+                            codPayment.userId.toString(),
+                            netPaid,
+                            orderId
+                        );
+                        await PaymentModel.findByIdAndUpdate(codPayment._id, {
+                            $set: { pointsEarned: earned },
+                        });
+                    }
+                }
+
                 notificationService.pushNotification(
                     "ORDER",
                     "Order created",

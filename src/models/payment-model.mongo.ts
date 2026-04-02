@@ -48,6 +48,11 @@ const paymentSchema = new Schema<PaymentDocument>(
         },
         couponCode: { type: String, default: null },
         couponDiscount: { type: Number, default: 0 },
+        // ── Loyalty ──────────────────────────────────────
+        memberDiscount: { type: Number, default: 0 },
+        pointsEarned: { type: Number, default: 0 },
+        pointsRedeemed: { type: Number, default: 0 },
+        pointsDiscount: { type: Number, default: 0 },
     },
     { timestamps: true, versionKey: false }
 );

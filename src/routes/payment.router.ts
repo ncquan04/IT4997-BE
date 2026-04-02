@@ -10,6 +10,10 @@ import {
 } from "../services/paymeny.service";
 import { notificationService } from "../services/notification.service";
 import { couponService } from "../services/coupon.service";
+import {
+    calculateMemberDiscount,
+    previewRedemption,
+} from "../services/loyalty.service";
 
 const PAYMENT_METHOD = Contacts.PaymentMethod;
 const DELIVERY = Contacts.Delivery;
@@ -25,6 +29,12 @@ PaymentRouter.post("/payment/creator", auth, async (req, res) => {
         const couponCode = req.query["coupon"]
             ? String(req.query["coupon"])
             : null;
+        // Số điểm khách muốn đổi (tuỳ chọn, do frontend gửi lên)
+        const pointsToRedeem = Math.max(
+            0,
+            parseInt(String(req.query["points"] ?? "0"), 10) || 0
+        );
+
         if (!orderId) {
             return res.status(400).json("order_id is required");
         }
@@ -63,9 +73,32 @@ PaymentRouter.post("/payment/creator", auth, async (req, res) => {
             );
             couponDiscount = couponResult.discountAmount;
             validatedCouponCode = couponCode.toUpperCase();
-            // Atomically increment usedCount
             await couponService.incrementUsedCount(couponCode);
         }
+
+        const userId: string = (req as any).user.id;
+
+        // Tính chiết khấu theo hạng thành viên (dựa trên giá sau coupon)
+        const baseAfterCoupon = totalMoney - couponDiscount;
+        const { discountAmount: memberDiscount } =
+            await calculateMemberDiscount(userId, baseAfterCoupon);
+
+        // Xác thực điểm đổi (dựa trên giá sau coupon + memberDiscount)
+        let validatedPointsRedeemed = 0;
+        let pointsDiscount = 0;
+        if (pointsToRedeem > 0) {
+            const baseAfterMember = baseAfterCoupon - memberDiscount;
+            const preview = await previewRedemption(userId, pointsToRedeem);
+            if (preview.valid) {
+                // Không cho đổi điểm vượt quá số tiền còn lại
+                const cappedPoints = Math.min(pointsToRedeem, baseAfterMember);
+                validatedPointsRedeemed = cappedPoints;
+                pointsDiscount = cappedPoints; // 1 điểm = 1 VND
+            }
+        }
+
+        const finalTotal =
+            totalMoney - couponDiscount - memberDiscount - pointsDiscount;
 
         const urlRedirect = await paymentService.paymentTransctip(
             method,
@@ -75,15 +108,18 @@ PaymentRouter.post("/payment/creator", auth, async (req, res) => {
         await Promise.all([
             paymentService.CreatePayment({
                 _id: "",
-                userId: (req as any).user.id,
+                userId,
                 orderId: orderRes[0]._id,
                 method: method ?? PAYMENT_METHOD.COD,
-                totalMoney: totalMoney - couponDiscount,
+                totalMoney: finalTotal,
                 discount: totalDiscount,
                 delivery: delivery || DELIVERY.EXPRESS,
                 status: STATUS_PAYMENT.UNPAID,
                 couponCode: validatedCouponCode ?? undefined,
                 couponDiscount,
+                memberDiscount,
+                pointsRedeemed: validatedPointsRedeemed,
+                pointsDiscount,
             }),
             orderServices.updateOrder(
                 { statusOrder: Contacts.Status.Order.PROCESSING },

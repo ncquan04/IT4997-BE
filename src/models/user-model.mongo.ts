@@ -1,5 +1,6 @@
 import { Document, Model, model, Schema } from "mongoose";
 import { IUser, UserRole } from "../shared/models/user-model";
+import { MemberTier } from "../shared/models/member-tier-config-model";
 import { branchTableName } from "./branch-model.mongo";
 
 export const userTableName = "User";
@@ -27,6 +28,16 @@ const userSchema = new Schema<UserModelDocument>(
         dateOfBirth: { type: Number },
         verifyCode: { type: String },
         branchId: { type: ObjectId as any, ref: branchTableName },
+        // ── Loyalty ────────────────────────────────────────
+        memberTier: {
+            type: String,
+            enum: Object.values(MemberTier),
+            default: MemberTier.S_NEW,
+        },
+        loyaltyPoints: { type: Number, default: 0, min: 0 },
+        totalSpent: { type: Number, default: 0, min: 0 },
+        spentInWindow: { type: Number, default: 0, min: 0 },
+        windowStartAt: { type: Number, default: () => Date.now() },
     },
     { versionKey: false, timestamps: true }
 );
