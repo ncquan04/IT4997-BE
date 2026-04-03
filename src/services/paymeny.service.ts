@@ -188,20 +188,12 @@ class PaymentService {
                     );
 
                     if (paymentUpdated) {
-                        // Move to PROCESSING so admin can assign IMEI and ship.
-                        // Do NOT jump to SHIPPING here — that requires stock export.
                         await orderServices.updateOrder(
                             { statusOrder: STATUS_ORDER.PROCESSING },
                             orderId
                         );
 
-                        // Tích điểm loyalty: tính trên số tiền thực trả
-                        const netPaid =
-                            paymentUpdated.totalMoney -
-                            (paymentUpdated.discount ?? 0) -
-                            (paymentUpdated.couponDiscount ?? 0) -
-                            (paymentUpdated.memberDiscount ?? 0) -
-                            (paymentUpdated.pointsDiscount ?? 0);
+                        const netPaid = paymentUpdated.totalMoney ?? 0;
                         if (netPaid > 0) {
                             const earned = Math.floor(netPaid / 100);
                             await awardPoints(
@@ -265,12 +257,8 @@ class PaymentService {
                     { new: true }
                 );
                 if (codPayment) {
-                    const netPaid =
-                        codPayment.totalMoney -
-                        (codPayment.discount ?? 0) -
-                        (codPayment.couponDiscount ?? 0) -
-                        (codPayment.memberDiscount ?? 0) -
-                        (codPayment.pointsDiscount ?? 0);
+                    // totalMoney đã là số tiền thực thu
+                    const netPaid = codPayment.totalMoney ?? 0;
                     if (netPaid > 0) {
                         const earned = Math.floor(netPaid / 100);
                         await awardPoints(
