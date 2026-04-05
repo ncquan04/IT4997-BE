@@ -15,6 +15,7 @@ SearchProductRouter.get("/search/products", async (req, res) => {
         minPrice,
         maxPrice,
         page,
+        sortBy,
     } = req.query;
 
     try {
@@ -33,15 +34,37 @@ SearchProductRouter.get("/search/products", async (req, res) => {
             ? await getCategoryAndDescendantIds(categoryIdValue.toString())
             : undefined;
 
+        // Build specFilters from repeated specKey/specValue params (array when multiple)
+        const specKeyArr = Array.isArray(specKey)
+            ? specKey
+            : specKey
+              ? [specKey]
+              : [];
+        const specValueArr = Array.isArray(specValue)
+            ? specValue
+            : specValue
+              ? [specValue]
+              : [];
+        const specFilters = specKeyArr
+            .map((k, i) => ({
+                key: k.toString(),
+                value: (specValueArr[i] ?? "").toString(),
+            }))
+            .filter((f) => f.key && f.value);
+
         const results = await ElasticSearch.searchProductsAdvanced({
             query: query?.toString(),
             brand: brand?.toString(),
             categoryIds,
-            specKey: specKey?.toString(),
-            specValue: specValue?.toString(),
+            specFilters: specFilters.length > 0 ? specFilters : undefined,
+            // keep backward-compat single params for non-CategoryPage callers
+            specKey: specFilters.length === 0 ? specKey?.toString() : undefined,
+            specValue:
+                specFilters.length === 0 ? specValue?.toString() : undefined,
             minPrice: minPrice ? Number(minPrice) : undefined,
             maxPrice: maxPrice ? Number(maxPrice) : undefined,
             page: page ? Number(page) : undefined,
+            sortBy: sortBy?.toString(),
         });
 
         res.json(results);

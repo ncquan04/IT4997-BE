@@ -11,6 +11,10 @@ const configObject = {
 };
 
 const { ip, port, user, pass } = configObject;
+interface SpecFilter {
+    key: string;
+    value: string;
+}
 interface SearchParams {
     query?: string;
     brand?: string;
@@ -18,10 +22,12 @@ interface SearchParams {
     categoryIds?: string[];
     specKey?: string;
     specValue?: string;
+    specFilters?: SpecFilter[];
     minPrice?: number;
     maxPrice?: number;
     size?: number;
     page?: number;
+    sortBy?: string;
 }
 export class ElasticSearch {
     private static readonly esClient: ES.Client = new ES.Client({
@@ -120,10 +126,12 @@ export class ElasticSearch {
             categoryIds,
             specKey,
             specValue,
+            specFilters,
             minPrice,
             maxPrice,
             size = 20,
             page = 1,
+            sortBy,
         } = params;
 
         const must: any[] = [];
@@ -148,15 +156,34 @@ export class ElasticSearch {
             filter.push({ term: { categoryId } });
         }
 
-        //Nest variants filter
-        if (specKey || specValue) {
+        // Spec filters — supports multiple {key, value} pairs (AND logic)
+        if (specFilters && specFilters.length > 0) {
+            specFilters.forEach(({ key, value }) => {
+                if (!key && !value) return;
+                const specMust: any[] = [];
+                if (key) specMust.push({ term: { "specifications.key": key } });
+                if (value)
+                    specMust.push({
+                        match: {
+                            "specifications.value": {
+                                query: value,
+                                fuzziness: "AUTO",
+                            },
+                        },
+                    });
+                filter.push({
+                    nested: {
+                        path: "specifications",
+                        query: { bool: { must: specMust } },
+                    },
+                });
+            });
+        } else if (specKey || specValue) {
+            // Backward compat for single specKey/specValue (used by search page)
             const specMust: any[] = [];
-
-            if (specKey) {
+            if (specKey)
                 specMust.push({ term: { "specifications.key": specKey } });
-            }
-
-            if (specValue) {
+            if (specValue)
                 specMust.push({
                     match: {
                         "specifications.value": {
@@ -165,14 +192,10 @@ export class ElasticSearch {
                         },
                     },
                 });
-            }
-
             filter.push({
                 nested: {
                     path: "specifications",
-                    query: {
-                        bool: { must: specMust },
-                    },
+                    query: { bool: { must: specMust } },
                 },
             });
         }
@@ -203,7 +226,7 @@ export class ElasticSearch {
                 isHide: STATUS_HIDE.PUBLIC,
             },
         });
-        const esQuery = {
+        const esQuery: any = {
             index: "products",
             from: (page - 1) * size,
             size,
@@ -214,6 +237,28 @@ export class ElasticSearch {
                 },
             },
         };
+
+        if (sortBy === "price_asc") {
+            esQuery.sort = [
+                {
+                    "variants.price": {
+                        order: "asc",
+                        nested: { path: "variants" },
+                        mode: "min",
+                    },
+                },
+            ];
+        } else if (sortBy === "price_desc") {
+            esQuery.sort = [
+                {
+                    "variants.price": {
+                        order: "desc",
+                        nested: { path: "variants" },
+                        mode: "min",
+                    },
+                },
+            ];
+        }
 
         const result = await this.esClient.search(esQuery);
 
