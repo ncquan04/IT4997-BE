@@ -1,0 +1,122 @@
+[
+  {
+    "_id": "38c2486e5aeb93d04d3c95f6",
+    "name": "Công ty TNHH Samsung Vina",
+    "contactPerson": "Nguyễn Văn An",
+    "phone": "02839111222",
+    "email": "contact@samsungvina.vn",
+    "address": "Lô C2, KCN Sài Đồng B, P. Sài Đồng, Q. Long Biên, Hà Nội"
+  },
+  {
+    "_id": "b86af73c5a83bcdd666132e5",
+    "name": "Apple Việt Nam LLC",
+    "contactPerson": "Trần Minh Tuấn",
+    "phone": "02871009900",
+    "email": "supply@applevn.com",
+    "address": "Tầng 18, Landmark 81, 720A Điện Biên Phủ, P. 22, Q. Bình Thạnh, TP. HCM"
+  },
+  {
+    "_id": "e8b996437f0644883841c403",
+    "name": "Xiaomi Việt Nam",
+    "contactPerson": "Lê Hoàng Phúc",
+    "phone": "02436225588",
+    "email": "partner@xiaomi.vn",
+    "address": "Tầng 10, Toà nhà Keangnam, Lô E6, Phạm Hùng, Q. Nam Từ Liêm, Hà Nội"
+  },
+  {
+    "_id": "83bbaa761de04dc05e6a75d1",
+    "name": "Công ty CP Phân Phối OPPO Việt Nam",
+    "contactPerson": "Phạm Thị Mai",
+    "phone": "02839006677",
+    "email": "sales@oppo.com.vn",
+    "address": "46 Tân Cảng, P. 25, Q. Bình Thạnh, TP. HCM"
+  },
+  {
+    "_id": "f01f1b3e96cce0198595a2bd",
+    "name": "Công ty TNHH Vivo Mobile Việt Nam",
+    "contactPerson": "Hoàng Đức Trung",
+    "phone": "02871556688",
+    "email": "wholesale@vivo.com.vn",
+    "address": "Tầng 5, Toà nhà Saigon Centre, 65 Lê Lợi, P. Bến Nghé, Q. 1, TP. HCM"
+  },
+  {
+    "_id": "c620eab5f55434ff4ca87c7d",
+    "name": "Realme Việt Nam",
+    "contactPerson": "Vũ Thanh Hà",
+    "phone": "02436009988",
+    "email": "b2b@realme.vn",
+    "address": "Tầng 15, Toà nhà VIT, 519 Kim Mã, Q. Ba Đình, Hà Nội"
+  },
+  {
+    "_id": "5c95d4778e8fe8b5f400486b",
+    "name": "Công ty TNHH Asus Việt Nam",
+    "contactPerson": "Đỗ Quốc Bảo",
+    "phone": "02838227733",
+    "email": "distributor@asus.com.vn",
+    "address": "Tầng 12, Etown Central, 11 Đoàn Văn Bơ, P. 12, Q. 4, TP. HCM"
+  },
+  {
+    "_id": "27b4e176ea02d71786571b16",
+    "name": "Dell Technologies Việt Nam",
+    "contactPerson": "Ngô Minh Châu",
+    "phone": "02871234567",
+    "email": "channel@dell.com.vn",
+    "address": "Tầng 20, Bitexco Tower, 2 Hải Triều, P. Bến Nghé, Q. 1, TP. HCM"
+  },
+  {
+    "_id": "5a5a517cba6e63d6ab9c1128",
+    "name": "Công ty CP Synnex FPT",
+    "contactPerson": "Bùi Thị Lan Anh",
+    "phone": "02473008899",
+    "email": "order@synnexfpt.com.vn",
+    "address": "Toà nhà FPT, 17 Duy Tân, P. Dịch Vọng Hậu, Q. Cầu Giấy, Hà Nội"
+  },
+  {
+    "_id": "2f88f6ed3589511dff5c44bf",
+    "name": "Công ty TNHH Lenovo Việt Nam",
+    "contactPerson": "Trịnh Văn Đạt",
+    "phone": "02838005566",
+    "email": "partner@lenovo.com.vn",
+    "address": "Tầng 8, Toà nhà Empress, 138-142 Hai Bà Trưng, P. Đa Kao, Q. 1, TP. HCM"
+  },
+  {
+    "_id": "4173b15e39ab4e80fa487e46",
+    "name": "Công ty TNHH HP Việt Nam",
+    "contactPerson": "Đinh Thúy Hằng",
+    "phone": "02871008844",
+    "email": "supply@hp.com.vn",
+    "address": "Tầng 14, Toà nhà Kumho Asiana, 39 Lê Duẩn, P. Bến Nghé, Q. 1, TP. HCM"
+  },
+  {
+    "_id": "2ef7e146c9b956db281a091c",
+    "name": "Công ty CP Phụ Kiện Thông Minh",
+    "contactPerson": "Lý Văn Khoa",
+    "phone": "02462881122",
+    "email": "info@phukienthongminh.vn",
+    "address": "Số 8 Phạm Hùng, P. Mỹ Đình 2, Q. Nam Từ Liêm, Hà Nội"
+  },
+  {
+    "_id": "ac0dd53c34e3bce465a988f7",
+    "name": "Công ty TNHH JBL Harman Việt Nam",
+    "contactPerson": "Phan Quốc Việt",
+    "phone": "02839334455",
+    "email": "wholesale@jbl.com.vn",
+    "address": "Lầu 6, Toà nhà A&B, 76 Lê Lai, P. Bến Thành, Q. 1, TP. HCM"
+  },
+  {
+    "_id": "97086b2b0730ad8b7c60e62c",
+    "name": "Anker Innovations Việt Nam",
+    "contactPerson": "Mai Xuân Hải",
+    "phone": "02436778899",
+    "email": "b2b@anker.vn",
+    "address": "Tầng 7, Toà nhà Hà Nội Group, 442 Đội Cấn, Q. Ba Đình, Hà Nội"
+  },
+  {
+    "_id": "9746edd69ca73dd7fe014890",
+    "name": "Công ty TNHH Logitech Việt Nam",
+    "contactPerson": "Cao Thị Ngọc Ánh",
+    "phone": "02871223344",
+    "email": "partner@logitech.com.vn",
+    "address": "Tầng 9, Toà nhà Pearl Plaza, 561A Điện Biên Phủ, P. 25, Q. Bình Thạnh, TP. HCM"
+  }
+]

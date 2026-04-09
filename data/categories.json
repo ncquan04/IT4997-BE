@@ -1,0 +1,508 @@
+[
+  {
+    "_id": "cde63658dbf2f58f56583f71",
+    "name": "Điện thoại",
+    "description": "Điện thoại di động"
+  },
+  {
+    "_id": "7e30f5f7cb984d2b44ec15d7",
+    "name": "Apple",
+    "description": "Điện thoại Apple",
+    "parentCategoryId": "cde63658dbf2f58f56583f71"
+  },
+  {
+    "_id": "273c609abcd6d508bdd1e2c2",
+    "name": "Google",
+    "description": "Điện thoại Google",
+    "parentCategoryId": "cde63658dbf2f58f56583f71"
+  },
+  {
+    "_id": "cbfb9729129f45d66ba957db",
+    "name": "Honor",
+    "description": "Điện thoại Honor",
+    "parentCategoryId": "cde63658dbf2f58f56583f71"
+  },
+  {
+    "_id": "e7ae1c34c0de8bf8c5648252",
+    "name": "Huawei",
+    "description": "Điện thoại Huawei",
+    "parentCategoryId": "cde63658dbf2f58f56583f71"
+  },
+  {
+    "_id": "04772af4e711107161c22459",
+    "name": "Infinix",
+    "description": "Điện thoại Infinix",
+    "parentCategoryId": "cde63658dbf2f58f56583f71"
+  },
+  {
+    "_id": "59c00be2f30c0bd0df6da8b7",
+    "name": "Lenovo",
+    "description": "Điện thoại Lenovo",
+    "parentCategoryId": "cde63658dbf2f58f56583f71"
+  },
+  {
+    "_id": "6132598d1801e67f7ed3c4c4",
+    "name": "Motorola",
+    "description": "Điện thoại Motorola",
+    "parentCategoryId": "cde63658dbf2f58f56583f71"
+  },
+  {
+    "_id": "0b243ac5c02bb79a47460bd1",
+    "name": "Nokia",
+    "description": "Điện thoại Nokia",
+    "parentCategoryId": "cde63658dbf2f58f56583f71"
+  },
+  {
+    "_id": "fa42420514cbdfc62b29d5b0",
+    "name": "OnePlus",
+    "description": "Điện thoại OnePlus",
+    "parentCategoryId": "cde63658dbf2f58f56583f71"
+  },
+  {
+    "_id": "918636b3ba573620cd9cf1ce",
+    "name": "Oppo",
+    "description": "Điện thoại Oppo",
+    "parentCategoryId": "cde63658dbf2f58f56583f71"
+  },
+  {
+    "_id": "0e1053879439c1b3e3330108",
+    "name": "POCO",
+    "description": "Điện thoại POCO",
+    "parentCategoryId": "cde63658dbf2f58f56583f71"
+  },
+  {
+    "_id": "860d1f8b24e4d4458a311ed7",
+    "name": "Realme",
+    "description": "Điện thoại Realme",
+    "parentCategoryId": "cde63658dbf2f58f56583f71"
+  },
+  {
+    "_id": "74cc7e0943ad3fe6dc698046",
+    "name": "Samsung",
+    "description": "Điện thoại Samsung",
+    "parentCategoryId": "cde63658dbf2f58f56583f71"
+  },
+  {
+    "_id": "7fdc08da586420e709962685",
+    "name": "Sony",
+    "description": "Điện thoại Sony",
+    "parentCategoryId": "cde63658dbf2f58f56583f71"
+  },
+  {
+    "_id": "9e9879bac9c2480548a33630",
+    "name": "Tecno",
+    "description": "Điện thoại Tecno",
+    "parentCategoryId": "cde63658dbf2f58f56583f71"
+  },
+  {
+    "_id": "dbb9390de8e6af7987b164a9",
+    "name": "Vivo",
+    "description": "Điện thoại Vivo",
+    "parentCategoryId": "cde63658dbf2f58f56583f71"
+  },
+  {
+    "_id": "c6a804af997460665b041155",
+    "name": "Xiaomi",
+    "description": "Điện thoại Xiaomi",
+    "parentCategoryId": "cde63658dbf2f58f56583f71"
+  },
+  {
+    "_id": "cdcc582eedf96149bc0c7cb9",
+    "name": "iQOO",
+    "description": "Điện thoại iQOO",
+    "parentCategoryId": "cde63658dbf2f58f56583f71"
+  },
+  {
+    "_id": "20d1c07e70897b5848eccb0a",
+    "name": "Laptop",
+    "description": "Máy tính xách tay"
+  },
+  {
+    "_id": "60194464b2f3a9bc20aa3856",
+    "name": "ASUS",
+    "description": "Laptop ASUS",
+    "parentCategoryId": "20d1c07e70897b5848eccb0a"
+  },
+  {
+    "_id": "808b45c04e735a186152b29c",
+    "name": "AWOW",
+    "description": "Laptop AWOW",
+    "parentCategoryId": "20d1c07e70897b5848eccb0a"
+  },
+  {
+    "_id": "758d3c42630a027cfd64b0ac",
+    "name": "Acer",
+    "description": "Laptop Acer",
+    "parentCategoryId": "20d1c07e70897b5848eccb0a"
+  },
+  {
+    "_id": "04675da2aa3f20667d2aab72",
+    "name": "Alienware",
+    "description": "Laptop Alienware",
+    "parentCategoryId": "20d1c07e70897b5848eccb0a"
+  },
+  {
+    "_id": "59dea0cdce8f85b171203782",
+    "name": "Apple",
+    "description": "Laptop Apple",
+    "parentCategoryId": "20d1c07e70897b5848eccb0a"
+  },
+  {
+    "_id": "1d319c65b1942dc724ac6df4",
+    "name": "Asus",
+    "description": "Laptop Asus",
+    "parentCategoryId": "20d1c07e70897b5848eccb0a"
+  },
+  {
+    "_id": "760e1433a44c3c29eb768dff",
+    "name": "Best Notebooks",
+    "description": "Laptop Best Notebooks",
+    "parentCategoryId": "20d1c07e70897b5848eccb0a"
+  },
+  {
+    "_id": "b69939b4862b880d94897c24",
+    "name": "CTL",
+    "description": "Laptop CTL",
+    "parentCategoryId": "20d1c07e70897b5848eccb0a"
+  },
+  {
+    "_id": "07527b4fbd13b119b5e461d5",
+    "name": "Carlisle FoodService Products",
+    "description": "Laptop Carlisle FoodService Products",
+    "parentCategoryId": "20d1c07e70897b5848eccb0a"
+  },
+  {
+    "_id": "92e58bd5c682afe3ca7a20f8",
+    "name": "Computer Upgrade King",
+    "description": "Laptop Computer Upgrade King",
+    "parentCategoryId": "20d1c07e70897b5848eccb0a"
+  },
+  {
+    "_id": "3b2947a4f58fbad80d606087",
+    "name": "Corsair",
+    "description": "Laptop Corsair",
+    "parentCategoryId": "20d1c07e70897b5848eccb0a"
+  },
+  {
+    "_id": "a8eec167c7517718600cbccc",
+    "name": "Dell",
+    "description": "Laptop Dell",
+    "parentCategoryId": "20d1c07e70897b5848eccb0a"
+  },
+  {
+    "_id": "c58f4d54e724b5beccaf0dc5",
+    "name": "Elo",
+    "description": "Laptop Elo",
+    "parentCategoryId": "20d1c07e70897b5848eccb0a"
+  },
+  {
+    "_id": "ffc90bc357ed258018abcbb0",
+    "name": "Gateway",
+    "description": "Laptop Gateway",
+    "parentCategoryId": "20d1c07e70897b5848eccb0a"
+  },
+  {
+    "_id": "aacfa1077a4e820b126cb4de",
+    "name": "Gigabyte",
+    "description": "Laptop Gigabyte",
+    "parentCategoryId": "20d1c07e70897b5848eccb0a"
+  },
+  {
+    "_id": "51cd4f714b18345f51298feb",
+    "name": "GizPro",
+    "description": "Laptop GizPro",
+    "parentCategoryId": "20d1c07e70897b5848eccb0a"
+  },
+  {
+    "_id": "29be6ef4fea774bc39c9ae65",
+    "name": "Goldengulf",
+    "description": "Laptop Goldengulf",
+    "parentCategoryId": "20d1c07e70897b5848eccb0a"
+  },
+  {
+    "_id": "1b7896cc823f46d4a6868ff0",
+    "name": "HP",
+    "description": "Laptop HP",
+    "parentCategoryId": "20d1c07e70897b5848eccb0a"
+  },
+  {
+    "_id": "b88cd87611193fa08d5c0fda",
+    "name": "IVIEW",
+    "description": "Laptop IVIEW",
+    "parentCategoryId": "20d1c07e70897b5848eccb0a"
+  },
+  {
+    "_id": "512da4152825ee77db4d6c59",
+    "name": "JTD",
+    "description": "Laptop JTD",
+    "parentCategoryId": "20d1c07e70897b5848eccb0a"
+  },
+  {
+    "_id": "404ecbfc3e2afbc5f3ca92b8",
+    "name": "LG",
+    "description": "Laptop LG",
+    "parentCategoryId": "20d1c07e70897b5848eccb0a"
+  },
+  {
+    "_id": "9366064a51ac188eb5de9892",
+    "name": "LPT",
+    "description": "Laptop LPT",
+    "parentCategoryId": "20d1c07e70897b5848eccb0a"
+  },
+  {
+    "_id": "659ed07a36e69b42e09cc0fa",
+    "name": "Latitude",
+    "description": "Laptop Latitude",
+    "parentCategoryId": "20d1c07e70897b5848eccb0a"
+  },
+  {
+    "_id": "08be971ac2976bdeea7e43d6",
+    "name": "Lenovo",
+    "description": "Laptop Lenovo",
+    "parentCategoryId": "20d1c07e70897b5848eccb0a"
+  },
+  {
+    "_id": "13c7f37a8fb9c47a4a6014ed",
+    "name": "Luqeeg",
+    "description": "Laptop Luqeeg",
+    "parentCategoryId": "20d1c07e70897b5848eccb0a"
+  },
+  {
+    "_id": "c73c9551e4954eec11e25175",
+    "name": "MAINGEAR",
+    "description": "Laptop MAINGEAR",
+    "parentCategoryId": "20d1c07e70897b5848eccb0a"
+  },
+  {
+    "_id": "44f2627cddf722783d1ef60b",
+    "name": "MICROTELLA",
+    "description": "Laptop MICROTELLA",
+    "parentCategoryId": "20d1c07e70897b5848eccb0a"
+  },
+  {
+    "_id": "820cf162ee7d1b25158e24a2",
+    "name": "MSI",
+    "description": "Laptop MSI",
+    "parentCategoryId": "20d1c07e70897b5848eccb0a"
+  },
+  {
+    "_id": "5b694dfdcb13b6f6c595f6d9",
+    "name": "Microsoft",
+    "description": "Laptop Microsoft",
+    "parentCategoryId": "20d1c07e70897b5848eccb0a"
+  },
+  {
+    "_id": "63d2ea504cda1ee9c6becc04",
+    "name": "Mytrix",
+    "description": "Laptop Mytrix",
+    "parentCategoryId": "20d1c07e70897b5848eccb0a"
+  },
+  {
+    "_id": "bee0b68bf7f1087eeb2bd06c",
+    "name": "ONN",
+    "description": "Laptop ONN",
+    "parentCategoryId": "20d1c07e70897b5848eccb0a"
+  },
+  {
+    "_id": "06ad6b48d21521002493f339",
+    "name": "Panasonic",
+    "description": "Laptop Panasonic",
+    "parentCategoryId": "20d1c07e70897b5848eccb0a"
+  },
+  {
+    "_id": "e1f857264df5b31d91961e01",
+    "name": "Quality Refurbished Computers",
+    "description": "Laptop Quality Refurbished Computers",
+    "parentCategoryId": "20d1c07e70897b5848eccb0a"
+  },
+  {
+    "_id": "91c95cc0050c7ae0e10fa4c8",
+    "name": "ROKC",
+    "description": "Laptop ROKC",
+    "parentCategoryId": "20d1c07e70897b5848eccb0a"
+  },
+  {
+    "_id": "0a657be8e2612e92867f2e67",
+    "name": "Razer",
+    "description": "Laptop Razer",
+    "parentCategoryId": "20d1c07e70897b5848eccb0a"
+  },
+  {
+    "_id": "3ce67e73e13629791677798d",
+    "name": "SHOXLAB",
+    "description": "Laptop SHOXLAB",
+    "parentCategoryId": "20d1c07e70897b5848eccb0a"
+  },
+  {
+    "_id": "ac01ed91960fd3c6e98a2efe",
+    "name": "Samsung",
+    "description": "Laptop Samsung",
+    "parentCategoryId": "20d1c07e70897b5848eccb0a"
+  },
+  {
+    "_id": "8e2e6a187873e48915f0c1bb",
+    "name": "TOPOSH",
+    "description": "Laptop TOPOSH",
+    "parentCategoryId": "20d1c07e70897b5848eccb0a"
+  },
+  {
+    "_id": "2832b8941e44a1ff25965f60",
+    "name": "Tocosy",
+    "description": "Laptop Tocosy",
+    "parentCategoryId": "20d1c07e70897b5848eccb0a"
+  },
+  {
+    "_id": "9bee85a9c41fe6bb66d1721c",
+    "name": "Toughbook",
+    "description": "Laptop Toughbook",
+    "parentCategoryId": "20d1c07e70897b5848eccb0a"
+  },
+  {
+    "_id": "d265c61ec144701abd8dd914",
+    "name": "VAIO",
+    "description": "Laptop VAIO",
+    "parentCategoryId": "20d1c07e70897b5848eccb0a"
+  },
+  {
+    "_id": "36ef9a57a0975aeb1abd9a1a",
+    "name": "XAMMUE",
+    "description": "Laptop XAMMUE",
+    "parentCategoryId": "20d1c07e70897b5848eccb0a"
+  },
+  {
+    "_id": "ffe7acdfa6a75bd454c26bab",
+    "name": "XPG",
+    "description": "Laptop XPG",
+    "parentCategoryId": "20d1c07e70897b5848eccb0a"
+  },
+  {
+    "_id": "24ef83c4e69e5ca1d21d91d1",
+    "name": "Tai nghe",
+    "description": "Tai nghe các loại"
+  },
+  {
+    "_id": "bf06e6c071919e962fa91db1",
+    "name": "(Refurbished)",
+    "description": "Tai nghe (Refurbished)",
+    "parentCategoryId": "24ef83c4e69e5ca1d21d91d1"
+  },
+  {
+    "_id": "5d6cb6f4245483f2f77f124a",
+    "name": "Boult",
+    "description": "Tai nghe Boult",
+    "parentCategoryId": "24ef83c4e69e5ca1d21d91d1"
+  },
+  {
+    "_id": "3a7cab2ad76fed2d1263c97d",
+    "name": "Noise",
+    "description": "Tai nghe Noise",
+    "parentCategoryId": "24ef83c4e69e5ca1d21d91d1"
+  },
+  {
+    "_id": "c51652e3ab323dd96f9d4da1",
+    "name": "PTron",
+    "description": "Tai nghe PTron",
+    "parentCategoryId": "24ef83c4e69e5ca1d21d91d1"
+  },
+  {
+    "_id": "054bd5df970582749d6c3096",
+    "name": "Portronics",
+    "description": "Tai nghe Portronics",
+    "parentCategoryId": "24ef83c4e69e5ca1d21d91d1"
+  },
+  {
+    "_id": "a61d68867ebd946112ae6856",
+    "name": "Skullcandy",
+    "description": "Tai nghe Skullcandy",
+    "parentCategoryId": "24ef83c4e69e5ca1d21d91d1"
+  },
+  {
+    "_id": "6f8a893314e69052b01d8f02",
+    "name": "Wings",
+    "description": "Tai nghe Wings",
+    "parentCategoryId": "24ef83c4e69e5ca1d21d91d1"
+  },
+  {
+    "_id": "443320cc9f6af4d5ae86fde6",
+    "name": "ZEBRONICS",
+    "description": "Tai nghe ZEBRONICS",
+    "parentCategoryId": "24ef83c4e69e5ca1d21d91d1"
+  },
+  {
+    "_id": "50e4e03347bdfa3932756ffb",
+    "name": "boAt",
+    "description": "Tai nghe boAt",
+    "parentCategoryId": "24ef83c4e69e5ca1d21d91d1"
+  },
+  {
+    "_id": "99dac4ec1be7dda936fb7710",
+    "name": "Đồng hồ",
+    "description": "Smartwatch và đồng hồ thông minh"
+  },
+  {
+    "_id": "87d4c9350ef8450455589798",
+    "name": "Amazfit",
+    "description": "Đồng hồ Amazfit",
+    "parentCategoryId": "99dac4ec1be7dda936fb7710"
+  },
+  {
+    "_id": "0db1a21dc01d6be85683541a",
+    "name": "Apple",
+    "description": "Đồng hồ Apple",
+    "parentCategoryId": "99dac4ec1be7dda936fb7710"
+  },
+  {
+    "_id": "5c16fcbf72d9d2b09600766f",
+    "name": "Crown",
+    "description": "Đồng hồ Crown",
+    "parentCategoryId": "99dac4ec1be7dda936fb7710"
+  },
+  {
+    "_id": "2b08cba9bf4a007e32dbeb7f",
+    "name": "Fitbit",
+    "description": "Đồng hồ Fitbit",
+    "parentCategoryId": "99dac4ec1be7dda936fb7710"
+  },
+  {
+    "_id": "e7dee159d5998cddf42a3227",
+    "name": "Generic",
+    "description": "Đồng hồ Generic",
+    "parentCategoryId": "99dac4ec1be7dda936fb7710"
+  },
+  {
+    "_id": "bbf3316a5a12f2b78d2e9ae2",
+    "name": "Huawei",
+    "description": "Đồng hồ Huawei",
+    "parentCategoryId": "99dac4ec1be7dda936fb7710"
+  },
+  {
+    "_id": "93fdea04505871818667eb86",
+    "name": "I60",
+    "description": "Đồng hồ I60",
+    "parentCategoryId": "99dac4ec1be7dda936fb7710"
+  },
+  {
+    "_id": "c9151077694731192b0deffd",
+    "name": "Login",
+    "description": "Đồng hồ Login",
+    "parentCategoryId": "99dac4ec1be7dda936fb7710"
+  },
+  {
+    "_id": "7057658da4f625f4b43a2325",
+    "name": "Samsung",
+    "description": "Đồng hồ Samsung",
+    "parentCategoryId": "99dac4ec1be7dda936fb7710"
+  },
+  {
+    "_id": "9e045cee08ac4c200760822f",
+    "name": "Xiaomi",
+    "description": "Đồng hồ Xiaomi",
+    "parentCategoryId": "99dac4ec1be7dda936fb7710"
+  },
+  {
+    "_id": "c28021a252c32dd7961c64e9",
+    "name": "Zero",
+    "description": "Đồng hồ Zero",
+    "parentCategoryId": "99dac4ec1be7dda936fb7710"
+  }
+]
