@@ -16,6 +16,7 @@ import {
     getImportCost,
     getRefundSummary,
     getLoyaltySummary,
+    getPayrollCost,
 } from "../services/financial-report.service";
 import { verifyRole } from "../middlewares/verifyRole";
 import { verifyBranchScope } from "../middlewares/verifyBranchScope";
@@ -111,6 +112,14 @@ ReportRouter.get(
     auth,
     verifyRole([UserRole.ADMIN]),
     getLoyaltySummary
+);
+
+ReportRouter.get(
+    "/reports/financial/payroll-cost",
+    auth,
+    verifyRole(FINANCIAL_ROLES),
+    verifyBranchScope(),
+    getPayrollCost
 );
 
 export default ReportRouter;

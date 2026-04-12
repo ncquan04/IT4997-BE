@@ -8,6 +8,7 @@ import RefundReportModel from "../models/refund-report-model.mongo";
 import PointTransactionModel from "../models/point-transaction-model.mongo";
 import MemberTierConfigModel from "../models/member-tier-config-model.mongo";
 import UserModel from "../models/user-model.mongo";
+import PayrollModel from "../models/payroll-model.mongo";
 import { Contacts } from "../shared/contacts";
 
 const STATUS_ORDER = Contacts.Status.Order;
@@ -834,6 +835,140 @@ export const getLoyaltySummary = async (req: Request, res: Response) => {
             .json({ byType, overTime, tierDist, tierConfigs });
     } catch (error) {
         console.error("getLoyaltySummary error:", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+// ─── 9. Payroll Cost ─────────────────────────────────────────────────────────
+
+export const getPayrollCost = async (req: Request, res: Response) => {
+    try {
+        const branchId = parseBranchId(req);
+        const { from, to } = parseTimeRange(req);
+
+        // month/year filter (optional; if omitted returns all months)
+        const month = req.query.month ? Number(req.query.month) : undefined;
+        const year = req.query.year ? Number(req.query.year) : undefined;
+
+        const matchFilter: Record<string, unknown> = {};
+        if (branchId) matchFilter.branchId = branchId;
+
+        if (month) {
+            matchFilter.month = month;
+        }
+        if (year) {
+            matchFilter.year = year;
+        }
+
+        // Support from/to timestamp range by converting to month-year period
+        if (!month && !year && (from || to)) {
+            const periodExpr = { $add: [{ $multiply: ["$year", 12] }, "$month"] };
+            const periodConds: unknown[] = [];
+            if (from) {
+                const p = from.getFullYear() * 12 + from.getMonth() + 1;
+                periodConds.push({ $gte: [periodExpr, p] });
+            }
+            if (to) {
+                const p = to.getFullYear() * 12 + to.getMonth() + 1;
+                periodConds.push({ $lte: [periodExpr, p] });
+            }
+            matchFilter.$expr = periodConds.length === 1
+                ? periodConds[0]
+                : { $and: periodConds };
+        }
+
+        // Summary
+        const summaryPipeline: mongoose.PipelineStage[] = [
+            { $match: matchFilter },
+            {
+                $group: {
+                    _id: null,
+                    totalBaseSalary: { $sum: "$baseSalary" },
+                    totalAllowances: { $sum: "$allowances" },
+                    totalDeductions: { $sum: "$deductions" },
+                    totalActualSalary: { $sum: "$actualSalary" },
+                    employeeCount: { $sum: 1 },
+                },
+            },
+        ];
+
+        // By branch
+        const byBranchPipeline: mongoose.PipelineStage[] = [
+            { $match: matchFilter },
+            {
+                $group: {
+                    _id: "$branchId",
+                    totalActualSalary: { $sum: "$actualSalary" },
+                    employeeCount: { $sum: 1 },
+                },
+            },
+            {
+                $lookup: {
+                    from: "Branch",
+                    localField: "_id",
+                    foreignField: "_id",
+                    as: "branch",
+                },
+            },
+            {
+                $project: {
+                    branchName: { $ifNull: [{ $arrayElemAt: ["$branch.name", 0] }, "Unknown"] },
+                    totalActualSalary: 1,
+                    employeeCount: 1,
+                },
+            },
+        ];
+
+        // Over time (by month-year)
+        const overTimePipeline: mongoose.PipelineStage[] = [
+            { $match: matchFilter },
+            {
+                $group: {
+                    _id: { year: "$year", month: "$month" },
+                    totalActualSalary: { $sum: "$actualSalary" },
+                    employeeCount: { $sum: 1 },
+                },
+            },
+            {
+                $project: {
+                    _id: {
+                        $concat: [
+                            { $toString: "$_id.year" },
+                            "-",
+                            {
+                                $cond: {
+                                    if: { $lt: ["$_id.month", 10] },
+                                    then: { $concat: ["0", { $toString: "$_id.month" }] },
+                                    else: { $toString: "$_id.month" },
+                                },
+                            },
+                        ],
+                    },
+                    totalActualSalary: 1,
+                    employeeCount: 1,
+                },
+            },
+            { $sort: { _id: 1 } },
+        ];
+
+        const [summaryArr, byBranch, overTime] = await Promise.all([
+            PayrollModel.aggregate(summaryPipeline),
+            PayrollModel.aggregate(byBranchPipeline),
+            PayrollModel.aggregate(overTimePipeline),
+        ]);
+
+        const summary = summaryArr[0] ?? {
+            totalBaseSalary: 0,
+            totalAllowances: 0,
+            totalDeductions: 0,
+            totalActualSalary: 0,
+            employeeCount: 0,
+        };
+        delete summary._id;
+
+        return res.status(200).json({ summary, byBranch, overTime });
+    } catch (error) {
+        console.error("getPayrollCost error:", error);
         return res.status(500).json({ message: "Internal server error" });
     }
 };
