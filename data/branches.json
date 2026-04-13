@@ -4,8 +4,9 @@
     "name": "Ngọc Hồi",
     "address": "361 Ngọc Hồi, X. Văn Điển, H. Thanh Trì, Hà Nội",
     "phone": "02471230361",
-    "managerId": "3919941a08a1287e3b83b669",
-    "isActive": true
+    "managerId": "7ee778226d4a12b53b7802b2",
+    "isActive": true,
+    "rentCost": 35000000
   },
   {
     "_id": "8a000c98ba8e8866d64c5f6b",
@@ -13,7 +14,8 @@
     "address": "770 Quang Trung, P. Dương Nội, Q. Hà Đông, Hà Nội",
     "phone": "02471000770",
     "managerId": "1b31e283358a4017642e931e",
-    "isActive": true
+    "isActive": true,
+    "rentCost": 45000000
   },
   {
     "_id": "4bd3d096c6d0c94b6333cdfb",
@@ -21,7 +23,8 @@
     "address": "267 Đường Quang Trung, P. Quang Trung, Q. Hà Đông, Hà Nội",
     "phone": "02471000267",
     "managerId": "f33666e9ca74c71738ce3d6c",
-    "isActive": true
+    "isActive": true,
+    "rentCost": 48000000
   },
   {
     "_id": "007b30895b28e6cfa86e5d61",
@@ -29,7 +32,8 @@
     "address": "87 Phùng Hưng, P. Phúc La, Q. Hà Đông, Hà Nội",
     "phone": "02471010087",
     "managerId": "e6e67f66f344aad3bd890d43",
-    "isActive": true
+    "isActive": true,
+    "rentCost": 46000000
   },
   {
     "_id": "7bb93955dfa4cb2b5d1ca46f",
@@ -37,7 +41,8 @@
     "address": "265 Lĩnh Nam, P. Vĩnh Hưng, Q. Hoàng Mai, Hà Nội",
     "phone": "02471030265",
     "managerId": "e3011e370760b4227c882445",
-    "isActive": true
+    "isActive": true,
+    "rentCost": 62000000
   },
   {
     "_id": "4e8c45f9e8d8c1738f97e7e8",
@@ -45,7 +50,8 @@
     "address": "546 Trương Định, P. Tân Mai, Q. Hoàng Mai - Ngã tư Tân Mai, Trương Định, Hà Nội",
     "phone": "02471088546",
     "managerId": "c19110ab50e3a48c13b5510d",
-    "isActive": true
+    "isActive": true,
+    "rentCost": 65000000
   },
   {
     "_id": "0f10f3f40cee15e4b368505c",
@@ -53,7 +59,8 @@
     "address": "140 -142 Vạn Phúc, P. Vạn Phúc, Q. Hà Đông, Hà Nội",
     "phone": "02471010140",
     "managerId": "99fee1280402ce72007eb5a6",
-    "isActive": true
+    "isActive": true,
+    "rentCost": 44000000
   },
   {
     "_id": "967b2b9a7449cf5955638655",
@@ -61,15 +68,17 @@
     "address": "543 Nguyễn Trãi, P. Thanh Xuân Nam, Q. Thanh Xuân, Hà Nội",
     "phone": "02471085543",
     "managerId": "66ad95648b2df68bcc99e695",
-    "isActive": true
+    "isActive": true,
+    "rentCost": 75000000
   },
   {
     "_id": "b1535794468a478872242f51",
     "name": "Minh Khai",
     "address": "282 Minh Khai, Q. Hai Bà Trưng, Hà Nội",
     "phone": "02471010282",
-    "managerId": "9359c598527d493996559a68",
-    "isActive": true
+    "managerId": "3bd34499ccfa01ec65d75439",
+    "isActive": true,
+    "rentCost": 90000000
   },
   {
     "_id": "fee86728cd72a1e5c355a83f",
@@ -77,7 +86,8 @@
     "address": "300 Nguyễn Trãi, Q. Thanh Xuân, Hà Nội",
     "phone": "02471000300",
     "managerId": "05af17a1d9290319f6e3aab4",
-    "isActive": true
+    "isActive": true,
+    "rentCost": 72000000
   },
   {
     "_id": "4add55c8509acece7dec15cb",
@@ -85,7 +95,8 @@
     "address": "51 Đại Cồ Việt, P. Lê Đại Hành, Q. Hai Bà Trưng, Hà Nội",
     "phone": "02471000051",
     "managerId": "b3b8f141db431793c50d058c",
-    "isActive": true
+    "isActive": true,
+    "rentCost": 95000000
   },
   {
     "_id": "4bb0ef5a36e2585b36066d89",
@@ -93,7 +104,8 @@
     "address": "21 Thái Hà, P. Trung Liệt, Q. Đống Đa, Hà Nội",
     "phone": "02471066119",
     "managerId": "922701eb2c52632eeda34086",
-    "isActive": true
+    "isActive": true,
+    "rentCost": 85000000
   },
   {
     "_id": "776510564f7e8d8f6469c710",
@@ -101,7 +113,8 @@
     "address": "51 Ngô Xuân Quảng, TT. Trâu Quỳ, H. Gia Lâm, Hà Nội",
     "phone": "02471000951",
     "managerId": "5ae40858250d1ec93434977b",
-    "isActive": true
+    "isActive": true,
+    "rentCost": 32000000
   },
   {
     "_id": "3d3d529c4588f7f267d35f18",
@@ -109,7 +122,8 @@
     "address": "42/A10 Lê Trọng Tấn, X. An Khánh, H. Hoài Đức, Hà Nội",
     "phone": "02471210042",
     "managerId": "1c09ecf829ac69bb2aebdf44",
-    "isActive": true
+    "isActive": true,
+    "rentCost": 30000000
   },
   {
     "_id": "a31300e170c600d531f82a3f",
@@ -117,7 +131,8 @@
     "address": "133 Thái Hà, P. Trung Liệt, Q, Đống Đa, Hà Nội",
     "phone": "02471003133",
     "managerId": "8f31a9a0e2a91c86e051f896",
-    "isActive": true
+    "isActive": true,
+    "rentCost": 88000000
   },
   {
     "_id": "24607ca2215b10b487285939",
@@ -125,15 +140,17 @@
     "address": "360 Xã Đàn, P. Nam Đồng, Q. Đống Đa, Hà Nội",
     "phone": "02471010384",
     "managerId": "db4aee8f9b77506ab05a00f2",
-    "isActive": true
+    "isActive": true,
+    "rentCost": 80000000
   },
   {
     "_id": "e218fabec8956151d776124b",
     "name": "Trần Duy Hưng",
     "address": "48 Trần Duy Hưng, P. Trung Hoà, Q. Cầu Giấy, Hà Nội",
     "phone": "02471000048",
-    "managerId": "bc051866f6ed22ee42e6e3f9",
-    "isActive": true
+    "managerId": "497b1921cb00b69a1e0273ca",
+    "isActive": true,
+    "rentCost": 82000000
   },
   {
     "_id": "c223f991565fa6b911b0ad76",
@@ -141,7 +158,8 @@
     "address": "55A Hàng Bài, P. Hàng Bài, Q. Hoàn Kiếm, Hà Nội",
     "phone": "02471010055",
     "managerId": "fc7713a2ac5e916e9ba98abd",
-    "isActive": true
+    "isActive": true,
+    "rentCost": 120000000
   },
   {
     "_id": "169a65fa5062af2ca064eaf4",
@@ -149,7 +167,8 @@
     "address": "50 Lê Quang Đạo, P. Phú Đô, Q. Nam Từ Liêm, Hà Nội",
     "phone": "02471017050",
     "managerId": "d0af504c382bc609f3f556c8",
-    "isActive": true
+    "isActive": true,
+    "rentCost": 55000000
   },
   {
     "_id": "649fc3806ac1acfd4b2225d3",
@@ -157,7 +176,8 @@
     "address": "21A Hàng Bài, P. Hàng Bài, Q. Hoàn Kiếm, Hà Nội",
     "phone": "02471062121",
     "managerId": "4cd9d98878d37f6209b905c7",
-    "isActive": true
+    "isActive": true,
+    "rentCost": 115000000
   },
   {
     "_id": "1b23add5a73dd240b68a5f8b",
@@ -165,15 +185,17 @@
     "address": "310 Cầu Giấy, P. Dịch Vọng, Q. Cầu Giấy, Hà Nội",
     "phone": "02471066306",
     "managerId": "9ea92803d47045e6a503ff6a",
-    "isActive": true
+    "isActive": true,
+    "rentCost": 78000000
   },
   {
     "_id": "963eef8789b0be807cb88e11",
     "name": "Nguyễn Văn Cừ",
     "address": "280 Nguyễn Văn Cừ, P. Bồ Đề, Q. Long Biên, Hà Nội",
     "phone": "02471066365",
-    "managerId": "7603ff8a79cc64f6ba61543b",
-    "isActive": true
+    "managerId": "fd5117dfc6c86692f172134a",
+    "isActive": true,
+    "rentCost": 52000000
   },
   {
     "_id": "3e026ca3b443ed060de86d11",
@@ -181,7 +203,8 @@
     "address": "160 Nguyễn Khánh Toàn, P. Quan Hoa, Q. Cầu Giấy, Hà Nội",
     "phone": "02471061160",
     "managerId": "62b8f36dacace975b81403c4",
-    "isActive": true
+    "isActive": true,
+    "rentCost": 72000000
   },
   {
     "_id": "870b31daeb4f351930bbc316",
@@ -189,7 +212,8 @@
     "address": "126 Hồ Tùng Mậu, P. Mai Dịch, Q. Cầu Giấy, Hà Nội",
     "phone": "02471089126",
     "managerId": "65ac7a1125bcadff5247cdc7",
-    "isActive": true
+    "isActive": true,
+    "rentCost": 68000000
   },
   {
     "_id": "9a006e9942265489ac77027c",
@@ -197,7 +221,8 @@
     "address": "343-345 Nguyễn Văn Cừ, P. Bồ Đề, Q. Long Biên, Hà Nội",
     "phone": "02471200345",
     "managerId": "d7b9d380db85a39471c70d82",
-    "isActive": true
+    "isActive": true,
+    "rentCost": 55000000
   },
   {
     "_id": "19a783b398bb99784305a588",
@@ -205,7 +230,8 @@
     "address": "248 Hồ Tùng Mậu, P. Phú Diễn, TP. Hà Nội",
     "phone": "02471200248",
     "managerId": "2b627caa39c478e647a5e2a8",
-    "isActive": true
+    "isActive": true,
+    "rentCost": 48000000
   },
   {
     "_id": "f0da3cf98ba8e6d4ef1fc35a",
@@ -213,7 +239,8 @@
     "address": "283 Hồ Tùng Mậu, P. Cầu Diễn, Q. Nam Từ Liêm, Hà Nội",
     "phone": "02471088283",
     "managerId": "e837dd49ab0aedfb3a395027",
-    "isActive": true
+    "isActive": true,
+    "rentCost": 52000000
   },
   {
     "_id": "9fc20d0aa4dd596d4884d9f0",
@@ -221,7 +248,8 @@
     "address": "143 Nghi Tàm, P. Tây Hồ, Q. Tây Hồ, Hà Nội",
     "phone": "02471200143",
     "managerId": "46569bc7c12d909f1e581f5d",
-    "isActive": true
+    "isActive": true,
+    "rentCost": 75000000
   },
   {
     "_id": "90812253cf792fa86a58a6f8",
@@ -229,7 +257,8 @@
     "address": "124 - 126 - 128 Lạc Long Quân, P. Bưởi, Q. Tây Hồ, Hà Nội",
     "phone": "02471010128",
     "managerId": "7ac3fd291e24ee9dee859e3d",
-    "isActive": true
+    "isActive": true,
+    "rentCost": 72000000
   },
   {
     "_id": "39977e788d783f4e4e2d4933",
@@ -237,7 +266,8 @@
     "address": "252 Ngô Gia Tự, P. Đức Giang, Q. Long Biên, Hà Nội",
     "phone": "02471015252",
     "managerId": "2c599945035c40dd5075dd19",
-    "isActive": true
+    "isActive": true,
+    "rentCost": 50000000
   },
   {
     "_id": "a599d1e59f9e2a25283f57bb",
@@ -245,7 +275,8 @@
     "address": "244 Phạm Văn Đồng, P. Cổ Nhuế, Q. Bắc Từ Liêm, Hà Nội",
     "phone": "02471007244",
     "managerId": "cf275602003b9736fa7938e6",
-    "isActive": true
+    "isActive": true,
+    "rentCost": 55000000
   },
   {
     "_id": "4c222649fe6cfc7e47a49566",
@@ -253,7 +284,8 @@
     "address": "679 Trạm Trôi , TT. Trạm Trôi, H. Hoài Đức, Hà Nội",
     "phone": "02471006679",
     "managerId": "751724f9c9a97daf6df648de",
-    "isActive": true
+    "isActive": true,
+    "rentCost": 30000000
   },
   {
     "_id": "6f87b7e72995de7e3e1c8d8f",
@@ -261,6 +293,7 @@
     "address": "21 Cao Lỗ, T. Phan Xá, H. Đông Anh, Hà Nội",
     "phone": "02471091021",
     "managerId": "f91fe3383ce5b88a8b7dbdbe",
-    "isActive": true
+    "isActive": true,
+    "rentCost": 28000000
   }
 ]

@@ -9,6 +9,7 @@ import PointTransactionModel from "../models/point-transaction-model.mongo";
 import MemberTierConfigModel from "../models/member-tier-config-model.mongo";
 import UserModel from "../models/user-model.mongo";
 import PayrollModel from "../models/payroll-model.mongo";
+import BranchModel from "../models/branch-model.mongo";
 import { Contacts } from "../shared/contacts";
 
 const STATUS_ORDER = Contacts.Status.Order;
@@ -969,6 +970,43 @@ export const getPayrollCost = async (req: Request, res: Response) => {
         return res.status(200).json({ summary, byBranch, overTime });
     } catch (error) {
         console.error("getPayrollCost error:", error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+export const getRentCost = async (req: Request, res: Response) => {
+    try {
+        const branchId = parseBranchId(req);
+
+        const filter: Record<string, unknown> = {};
+        if (branchId) filter._id = branchId;
+
+        const branches = await BranchModel.find(filter)
+            .select("name rentCost isActive")
+            .lean();
+
+        const totalRentCost = branches.reduce((sum, b) => sum + (b.rentCost ?? 0), 0);
+        const activeBranches = branches.filter((b) => b.isActive);
+        const totalActiveRentCost = activeBranches.reduce((sum, b) => sum + (b.rentCost ?? 0), 0);
+
+        const byBranch = branches.map((b) => ({
+            _id: String(b._id),
+            branchName: b.name,
+            rentCost: b.rentCost ?? 0,
+            isActive: b.isActive,
+        }));
+
+        return res.status(200).json({
+            summary: {
+                totalRentCost,
+                totalActiveRentCost,
+                branchCount: branches.length,
+                activeBranchCount: activeBranches.length,
+            },
+            byBranch,
+        });
+    } catch (error) {
+        console.error("getRentCost error:", error);
         return res.status(500).json({ message: "Internal server error" });
     }
 };

@@ -18,6 +18,7 @@ const branchSchema = new Schema<BranchModelDocument>(
         phone: { type: String, required: true },
         managerId: { type: ObjectId as any, ref: "User", required: true },
         isActive: { type: Boolean, default: true },
+        rentCost: { type: Number, default: 0 },
     },
     { versionKey: false, timestamps: true }
 );
