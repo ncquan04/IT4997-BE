@@ -863,7 +863,9 @@ export const getPayrollCost = async (req: Request, res: Response) => {
 
         // Support from/to timestamp range by converting to month-year period
         if (!month && !year && (from || to)) {
-            const periodExpr = { $add: [{ $multiply: ["$year", 12] }, "$month"] };
+            const periodExpr = {
+                $add: [{ $multiply: ["$year", 12] }, "$month"],
+            };
             const periodConds: unknown[] = [];
             if (from) {
                 const p = from.getFullYear() * 12 + from.getMonth() + 1;
@@ -873,9 +875,10 @@ export const getPayrollCost = async (req: Request, res: Response) => {
                 const p = to.getFullYear() * 12 + to.getMonth() + 1;
                 periodConds.push({ $lte: [periodExpr, p] });
             }
-            matchFilter.$expr = periodConds.length === 1
-                ? periodConds[0]
-                : { $and: periodConds };
+            matchFilter.$expr =
+                periodConds.length === 1
+                    ? periodConds[0]
+                    : { $and: periodConds };
         }
 
         // Summary
@@ -905,7 +908,7 @@ export const getPayrollCost = async (req: Request, res: Response) => {
             },
             {
                 $lookup: {
-                    from: "Branch",
+                    from: "branches",
                     localField: "_id",
                     foreignField: "_id",
                     as: "branch",
@@ -913,7 +916,12 @@ export const getPayrollCost = async (req: Request, res: Response) => {
             },
             {
                 $project: {
-                    branchName: { $ifNull: [{ $arrayElemAt: ["$branch.name", 0] }, "Unknown"] },
+                    branchName: {
+                        $ifNull: [
+                            { $arrayElemAt: ["$branch.name", 0] },
+                            "Unknown",
+                        ],
+                    },
                     totalActualSalary: 1,
                     employeeCount: 1,
                 },
@@ -939,7 +947,12 @@ export const getPayrollCost = async (req: Request, res: Response) => {
                             {
                                 $cond: {
                                     if: { $lt: ["$_id.month", 10] },
-                                    then: { $concat: ["0", { $toString: "$_id.month" }] },
+                                    then: {
+                                        $concat: [
+                                            "0",
+                                            { $toString: "$_id.month" },
+                                        ],
+                                    },
                                     else: { $toString: "$_id.month" },
                                 },
                             },
@@ -985,9 +998,15 @@ export const getRentCost = async (req: Request, res: Response) => {
             .select("name rentCost isActive")
             .lean();
 
-        const totalRentCost = branches.reduce((sum, b) => sum + (b.rentCost ?? 0), 0);
+        const totalRentCost = branches.reduce(
+            (sum, b) => sum + (b.rentCost ?? 0),
+            0
+        );
         const activeBranches = branches.filter((b) => b.isActive);
-        const totalActiveRentCost = activeBranches.reduce((sum, b) => sum + (b.rentCost ?? 0), 0);
+        const totalActiveRentCost = activeBranches.reduce(
+            (sum, b) => sum + (b.rentCost ?? 0),
+            0
+        );
 
         const byBranch = branches.map((b) => ({
             _id: String(b._id),
