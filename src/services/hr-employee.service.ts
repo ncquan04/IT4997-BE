@@ -94,6 +94,7 @@ export const updateEmployee = async (
         isActive,
         userName,
         phoneNumber,
+        dependants,
     } = req.body;
 
     const employee = await UserModel.findById(id);
@@ -123,6 +124,8 @@ export const updateEmployee = async (
     if (typeof isActive === "boolean") employee.isActive = isActive;
     if (userName) employee.userName = userName;
     if (phoneNumber) employee.phoneNumber = phoneNumber;
+    if (typeof dependants === "number" && dependants >= 0)
+        (employee as any).dependants = dependants;
 
     await employee.save();
 
@@ -149,6 +152,7 @@ export const createEmployee = async (
         branchId,
         baseSalary,
         startDate,
+        dependants,
     } = req.body;
 
     if (!userName || !email || !phoneNumber || !password) {
@@ -178,6 +182,8 @@ export const createEmployee = async (
         baseSalary: typeof baseSalary === "number" ? baseSalary : 0,
         startDate: typeof startDate === "number" ? startDate : Date.now(),
         isActive: true,
+        dependants:
+            typeof dependants === "number" && dependants >= 0 ? dependants : 0,
     });
 
     await employee.save();

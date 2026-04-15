@@ -42,6 +42,7 @@ const userSchema = new Schema<UserModelDocument>(
         baseSalary: { type: Number, default: 0, min: 0 },
         startDate: { type: Number },
         isActive: { type: Boolean, default: true },
+        dependants: { type: Number, default: 0, min: 0 },
     },
     { versionKey: false, timestamps: true }
 );
