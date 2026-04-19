@@ -4,6 +4,9 @@ WORKDIR /app
 
 RUN apk add --no-cache dumb-init
 
+# Skip Chromium download (puppeteer) — không cần trong Docker
+ENV PUPPETEER_SKIP_DOWNLOAD=true
+
 COPY package*.json ./
 RUN npm install --legacy-peer-deps
 
@@ -16,11 +19,13 @@ WORKDIR /app
 
 RUN apk add --no-cache dumb-init
 
+ENV PUPPETEER_SKIP_DOWNLOAD=true
+
 COPY package*.json ./
 RUN npm install --omit=dev --legacy-peer-deps
 
 COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/data ./data
+COPY data ./data
 
 ENTRYPOINT ["dumb-init", "--"]
 CMD ["node", "dist/src/server.js"]

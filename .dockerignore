@@ -6,5 +6,4 @@ dist
 *.md
 .github
 mongo-keyfile
-data
 reports
