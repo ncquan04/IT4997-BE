@@ -20,6 +20,7 @@ COPY package*.json ./
 RUN npm install --omit=dev --legacy-peer-deps
 
 COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/data ./data
 
 ENTRYPOINT ["dumb-init", "--"]
 CMD ["node", "dist/src/server.js"]
