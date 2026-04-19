@@ -2,8 +2,8 @@
 # Script cấp SSL lần đầu tiên (chạy trước khi start production stack)
 # Dùng khi domain đã trỏ IP về server
 
-DOMAIN="yourdomain.com"
-EMAIL="your-email@example.com"   # Email nhận thông báo hết hạn
+DOMAIN="nguyenchiquan.id.vn"
+EMAIL="chiquan02122004@gmail.com"
 
 # 1. Khởi động nginx ở chế độ HTTP-only để Certbot xác thực
 #    Tạm thời dùng config đơn giản không cần SSL

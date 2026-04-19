@@ -58,8 +58,7 @@ services:
       context: ../IT4997-FE
       dockerfile: Dockerfile
       args:
-        # Thay yourdomain.com bằng tên miền thực của bạn
-        VITE_ENDPOINT: https://yourdomain.com
+        VITE_ENDPOINT: https://nguyenchiquan.id.vn
     container_name: frontend
     restart: unless-stopped
     networks:
