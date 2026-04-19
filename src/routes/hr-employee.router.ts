@@ -7,6 +7,7 @@ import {
     getEmployees,
     getEmployeeById,
     updateEmployee,
+    createEmployee,
 } from "../services/hr-employee.service";
 
 const HrEmployeeRouter = express.Router();
@@ -36,6 +37,13 @@ HrEmployeeRouter.put(
     verifyRole(MANAGER_ROLES),
     verifyBranchScope(BRANCH_SCOPED),
     updateEmployee
+);
+
+HrEmployeeRouter.post(
+    "/hr/employees",
+    auth,
+    verifyRole([UserRole.ADMIN]),
+    createEmployee
 );
 
 export default HrEmployeeRouter;

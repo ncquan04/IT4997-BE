@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import mongoose from "mongoose";
+import bcrypt from "bcrypt";
 import UserModel from "../models/user-model.mongo";
 import { UserRole } from "../shared/models/user-model";
 
@@ -93,6 +94,7 @@ export const updateEmployee = async (
         isActive,
         userName,
         phoneNumber,
+        dependants,
     } = req.body;
 
     const employee = await UserModel.findById(id);
@@ -122,11 +124,72 @@ export const updateEmployee = async (
     if (typeof isActive === "boolean") employee.isActive = isActive;
     if (userName) employee.userName = userName;
     if (phoneNumber) employee.phoneNumber = phoneNumber;
+    if (typeof dependants === "number" && dependants >= 0)
+        (employee as any).dependants = dependants;
 
     await employee.save();
 
-    const updated = employee.toObject() as any;
-    delete updated.password;
-    delete updated.verifyCode;
+    const updated = await UserModel.findById(employee._id)
+        .select(
+            "-password -verifyCode -memberTier -loyaltyPoints -totalSpent -spentInWindow -windowStartAt -address"
+        )
+        .populate("branchId", "name address")
+        .lean();
     return res.json(updated);
+};
+
+// ─── Tạo nhân viên mới ───────────────────────────────────────────────────────
+export const createEmployee = async (
+    req: AuthenticatedRequest,
+    res: Response
+) => {
+    const {
+        userName,
+        email,
+        phoneNumber,
+        password,
+        role,
+        branchId,
+        baseSalary,
+        startDate,
+        dependants,
+    } = req.body;
+
+    if (!userName || !email || !phoneNumber || !password) {
+        return res.status(400).json({ message: "Missing required fields." });
+    }
+    if (role && !STAFF_ROLES.includes(role as UserRole)) {
+        return res.status(400).json({ message: "Invalid role." });
+    }
+
+    const existing = await UserModel.findOne({ email });
+    if (existing) {
+        return res.status(409).json({ message: "Email already in use." });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const employee = new UserModel({
+        userName,
+        email,
+        phoneNumber,
+        password: hashedPassword,
+        role:
+            role && STAFF_ROLES.includes(role as UserRole)
+                ? role
+                : UserRole.SALES,
+        branchId: branchId || undefined,
+        baseSalary: typeof baseSalary === "number" ? baseSalary : 0,
+        startDate: typeof startDate === "number" ? startDate : Date.now(),
+        isActive: true,
+        dependants:
+            typeof dependants === "number" && dependants >= 0 ? dependants : 0,
+    });
+
+    await employee.save();
+
+    const result = employee.toObject() as any;
+    delete result.password;
+    delete result.verifyCode;
+    return res.status(201).json(result);
 };

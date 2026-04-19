@@ -33,6 +33,13 @@ const payrollSchema = new Schema<PayrollModelDocument>(
         baseSalary: { type: Number, required: true, min: 0 },
         allowances: { type: Number, default: 0, min: 0 },
         deductions: { type: Number, default: 0, min: 0 },
+        grossSalary: { type: Number, default: 0, min: 0 },
+        dependants: { type: Number, default: 0, min: 0 },
+        insuranceBase: { type: Number, default: 0, min: 0 },
+        employeeInsurance: { type: Number, default: 0, min: 0 },
+        employerInsurance: { type: Number, default: 0, min: 0 },
+        taxableIncome: { type: Number, default: 0, min: 0 },
+        personalIncomeTax: { type: Number, default: 0, min: 0 },
         actualSalary: { type: Number, required: true, min: 0 },
         status: {
             type: String,

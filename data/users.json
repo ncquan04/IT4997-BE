@@ -17,7 +17,8 @@
         "windowStartAt": 1775752137319,
         "baseSalary": 25000000,
         "startDate": 1705872774552,
-        "isActive": true
+        "isActive": true,
+        "dependants": 0
     },
     {
         "_id": "ed11b63a60929c27d0d93eae",
@@ -37,7 +38,8 @@
         "windowStartAt": 1775752137319,
         "baseSalary": 25000000,
         "startDate": 1626992198422,
-        "isActive": true
+        "isActive": true,
+        "dependants": 0
     },
     {
         "_id": "7ee778226d4a12b53b7802b2",
@@ -57,7 +59,8 @@
         "windowStartAt": 1775752137319,
         "baseSalary": 18000000,
         "startDate": 1673326615455,
-        "isActive": true
+        "isActive": true,
+        "dependants": 2
     },
     {
         "_id": "3bd34499ccfa01ec65d75439",
@@ -77,7 +80,8 @@
         "windowStartAt": 1775752137319,
         "baseSalary": 18000000,
         "startDate": 1731759410667,
-        "isActive": true
+        "isActive": true,
+        "dependants": 2
     },
     {
         "_id": "497b1921cb00b69a1e0273ca",
@@ -97,7 +101,8 @@
         "windowStartAt": 1775752137319,
         "baseSalary": 18000000,
         "startDate": 1695093257676,
-        "isActive": true
+        "isActive": true,
+        "dependants": 1
     },
     {
         "_id": "fd5117dfc6c86692f172134a",
@@ -117,7 +122,8 @@
         "windowStartAt": 1775752137319,
         "baseSalary": 18000000,
         "startDate": 1662037896518,
-        "isActive": true
+        "isActive": true,
+        "dependants": 1
     },
     {
         "_id": "a4bf5a0a09b539d3915b8abd",
@@ -137,7 +143,8 @@
         "windowStartAt": 1775752137319,
         "baseSalary": 10000000,
         "startDate": 1693981266891,
-        "isActive": true
+        "isActive": true,
+        "dependants": 1
     },
     {
         "_id": "95306fbe83a4c67e68a2c634",
@@ -157,7 +164,8 @@
         "windowStartAt": 1775752137319,
         "baseSalary": 10000000,
         "startDate": 1632792500275,
-        "isActive": true
+        "isActive": true,
+        "dependants": 0
     },
     {
         "_id": "6a847728212e485140d94838",
@@ -177,7 +185,8 @@
         "windowStartAt": 1775752137319,
         "baseSalary": 10000000,
         "startDate": 1692409734444,
-        "isActive": true
+        "isActive": true,
+        "dependants": 0
     },
     {
         "_id": "1b14f456a68c570207b35ec3",
@@ -197,7 +206,8 @@
         "windowStartAt": 1775752137319,
         "baseSalary": 10000000,
         "startDate": 1705937835579,
-        "isActive": true
+        "isActive": true,
+        "dependants": 1
     },
     {
         "_id": "517c2d342e06f9902ab76af9",
@@ -217,7 +227,8 @@
         "windowStartAt": 1775752137319,
         "baseSalary": 10000000,
         "startDate": 1700157320552,
-        "isActive": true
+        "isActive": true,
+        "dependants": 0
     },
     {
         "_id": "49c98d1638e31b72aacb8d80",
@@ -237,7 +248,8 @@
         "windowStartAt": 1775752137319,
         "baseSalary": 9000000,
         "startDate": 1717916957474,
-        "isActive": true
+        "isActive": true,
+        "dependants": 0
     },
     {
         "_id": "d9c90bd45165bd92ebb49490",
@@ -257,7 +269,8 @@
         "windowStartAt": 1775752137319,
         "baseSalary": 9000000,
         "startDate": 1648503198980,
-        "isActive": true
+        "isActive": true,
+        "dependants": 1
     },
     {
         "_id": "b8dd7f7bd936648871fbe052",
@@ -277,7 +290,8 @@
         "windowStartAt": 1775752137319,
         "baseSalary": 9000000,
         "startDate": 1640707447269,
-        "isActive": true
+        "isActive": true,
+        "dependants": 0
     },
     {
         "_id": "bd923128c73ce1e71deefac6",
@@ -297,7 +311,8 @@
         "windowStartAt": 1775752137319,
         "baseSalary": 9000000,
         "startDate": 1625797763835,
-        "isActive": true
+        "isActive": true,
+        "dependants": 0
     },
     {
         "_id": "208e0c604e431ba385aa4efa",
@@ -317,7 +332,8 @@
         "windowStartAt": 1775752137319,
         "baseSalary": 9000000,
         "startDate": 1632808505897,
-        "isActive": true
+        "isActive": true,
+        "dependants": 2
     },
     {
         "_id": "ba1529a0f5e240323b22d06d",
@@ -337,7 +353,8 @@
         "windowStartAt": 1775752137319,
         "baseSalary": 9000000,
         "startDate": 1685527016901,
-        "isActive": true
+        "isActive": true,
+        "dependants": 1
     },
     {
         "_id": "0359492ef975eb065d023e2b",
@@ -357,7 +374,8 @@
         "windowStartAt": 1775752137319,
         "baseSalary": 9000000,
         "startDate": 1714616526014,
-        "isActive": true
+        "isActive": true,
+        "dependants": 0
     },
     {
         "_id": "a51240de2eb87a3856ed72d4",
@@ -377,7 +395,8 @@
         "windowStartAt": 1775752137319,
         "baseSalary": 9000000,
         "startDate": 1714436213833,
-        "isActive": true
+        "isActive": true,
+        "dependants": 0
     },
     {
         "_id": "a3d41ec66ee4ee5b13ebd9bc",
@@ -397,7 +416,8 @@
         "windowStartAt": 1775752137319,
         "baseSalary": 11000000,
         "startDate": 1626227610964,
-        "isActive": true
+        "isActive": true,
+        "dependants": 1
     },
     {
         "_id": "d2f17f1de4ed3e6cff60fa16",
@@ -417,7 +437,8 @@
         "windowStartAt": 1775752137319,
         "baseSalary": 11000000,
         "startDate": 1723575659960,
-        "isActive": true
+        "isActive": true,
+        "dependants": 0
     },
     {
         "_id": "3bc7be777007eecd1274c962",

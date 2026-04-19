@@ -7,6 +7,47 @@ import { AttendanceStatus } from "../shared/models/attendance-model";
 import { PayrollStatus } from "../shared/models/payroll-model";
 import { UserRole } from "../shared/models/user-model";
 
+// ─── Hằng số BH & Thuế TNCN (Việt Nam 2024-2026) ────────────────────────────
+/** Lương cơ sở 2024: 2.340.000 VNĐ → trần đóng BH = 20 × lương cơ sở */
+const INSURANCE_SALARY_CAP = 46_800_000; // 20 × 2.340.000
+const EMPLOYEE_INSURANCE_RATE = 0.105; // BHXH 8% + BHYT 1.5% + BHTN 1%
+const EMPLOYER_INSURANCE_RATE = 0.215; // BHXH 17.5% + BHYT 3% + BHTN 1%
+const PERSONAL_DEDUCTION = 11_000_000; // Giảm trừ bản thân
+const DEPENDENT_DEDUCTION = 4_400_000; // Giảm trừ mỗi người phụ thuộc
+
+/** Tính bảo hiểm nhân viên và doanh nghiệp đóng */
+const calcInsurance = (grossSalary: number) => {
+    const base = Math.min(grossSalary, INSURANCE_SALARY_CAP);
+    return {
+        insuranceBase: base,
+        employeeInsurance: Math.round(base * EMPLOYEE_INSURANCE_RATE),
+        employerInsurance: Math.round(base * EMPLOYER_INSURANCE_RATE),
+    };
+};
+
+/** Tính thuế TNCN theo biểu lũy tiến bộ phận (Điều 22 Luật Thuế TNCN) */
+const calcPIT = (taxableIncome: number): number => {
+    if (taxableIncome <= 0) return 0;
+    const brackets: [number, number][] = [
+        [5_000_000, 0.05],
+        [5_000_000, 0.1], // 5  – 10 triệu
+        [8_000_000, 0.15], // 10 – 18 triệu
+        [14_000_000, 0.2], // 18 – 32 triệu
+        [20_000_000, 0.25], // 32 – 52 triệu
+        [28_000_000, 0.3], // 52 – 80 triệu
+        [Infinity, 0.35], // > 80 triệu
+    ];
+    let tax = 0;
+    let remaining = taxableIncome;
+    for (const [limit, rate] of brackets) {
+        if (remaining <= 0) break;
+        const taxed = Math.min(remaining, limit);
+        tax += taxed * rate;
+        remaining -= taxed;
+    }
+    return Math.round(tax);
+};
+
 type AuthenticatedRequest = Request & {
     user?: { id: string; role: string; branchId?: string };
     targetBranchId?: string;
@@ -94,12 +135,36 @@ export const generatePayroll = async (
         }
 
         const baseSalary = emp.baseSalary ?? 0;
+        const dependants = (emp as any).dependants ?? 0;
         const paidDays = workingDays + leaveDays;
-        const actualSalary = Math.max(
+
+        // Lương gộp (trước BH + thuế)
+        const grossSalary = Math.max(
             0,
             Math.round((baseSalary * paidDays) / standardDays) +
                 (allowances ?? 0) -
                 deductions
+        );
+
+        // Bảo hiểm
+        const { insuranceBase, employeeInsurance, employerInsurance } =
+            calcInsurance(grossSalary);
+
+        // Thu nhập tính thuế TNCN
+        const taxableIncome = Math.max(
+            0,
+            grossSalary -
+                employeeInsurance -
+                PERSONAL_DEDUCTION -
+                dependants * DEPENDENT_DEDUCTION
+        );
+
+        const personalIncomeTax = calcPIT(taxableIncome);
+
+        // Lương thực lĩnh
+        const actualSalary = Math.max(
+            0,
+            grossSalary - employeeInsurance - personalIncomeTax
         );
 
         const payroll = await PayrollModel.findOneAndUpdate(
@@ -113,6 +178,13 @@ export const generatePayroll = async (
                     baseSalary,
                     allowances: allowances ?? 0,
                     deductions,
+                    grossSalary,
+                    dependants,
+                    insuranceBase,
+                    employeeInsurance,
+                    employerInsurance,
+                    taxableIncome,
+                    personalIncomeTax,
                     actualSalary,
                     status: PayrollStatus.DRAFT,
                 },
@@ -153,7 +225,7 @@ export const getPayrollList = async (
     const records = await PayrollModel.find(filter)
         .populate(
             "employeeId",
-            "userName email phoneNumber role branchId baseSalary"
+            "userName email phoneNumber role branchId baseSalary dependants"
         )
         .populate("confirmedBy", "userName")
         .sort({ employeeId: 1 })
