@@ -1,0 +1,104 @@
+version: '3.8'
+
+services:
+  # ---- MongoDB ----
+  mongodb:
+    image: mongo:7
+    container_name: mongodb
+    restart: unless-stopped
+    volumes:
+      - mongo_data:/data/db
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
+    networks:
+      - appnet
+
+  # ---- Redis ----
+  redis:
+    image: redis:7
+    container_name: redis
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    networks:
+      - appnet
+
+  # ---- Elasticsearch ----
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.12.1
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - ELASTIC_PASSWORD=changeme
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+      - xpack.security.enabled=false
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+    networks:
+      - appnet
+
+  # ---- Backend ----
+  backend:
+    build:
+      context: .
+      dockerfile: dockerFile.prod
+    container_name: backend
+    restart: unless-stopped
+    env_file:
+      - .env.prod
+    depends_on:
+      - mongodb
+      - redis
+      - elasticsearch
+    networks:
+      - appnet
+
+  # ---- Frontend ----
+  frontend:
+    build:
+      context: ../IT4997-FE
+      dockerfile: Dockerfile
+      args:
+        # Thay yourdomain.com bằng tên miền thực của bạn
+        VITE_ENDPOINT: https://yourdomain.com
+    container_name: frontend
+    restart: unless-stopped
+    networks:
+      - appnet
+
+  # ---- Nginx (Reverse Proxy + SSL) ----
+  nginx:
+    image: nginx:alpine
+    container_name: nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.prod.conf:/etc/nginx/nginx.conf:ro
+      - ./certbot/conf:/etc/letsencrypt:ro
+      - ./certbot/www:/var/www/certbot:ro
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - appnet
+
+  # ---- Certbot (cấp và gia hạn SSL) ----
+  certbot:
+    image: certbot/certbot
+    container_name: certbot
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    # Tự gia hạn mỗi 12 giờ
+    entrypoint: /bin/sh -c "trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;"
+    networks:
+      - appnet
+
+volumes:
+  mongo_data:
+  redis_data:
+  es_data:
+
+networks:
+  appnet:

@@ -38,3 +38,4 @@ logs-local/
 weaviate_1/
 __pycache__
 test.ts
+reports/
