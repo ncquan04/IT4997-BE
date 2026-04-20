@@ -7,7 +7,7 @@ import { orderServices } from "../services/order.service";
 import {
     ISignatureTranscript,
     paymentService,
-} from "../services/paymeny.service";
+} from "../services/payment.service";
 import { notificationService } from "../services/notification.service";
 import { couponService } from "../services/coupon.service";
 import {
