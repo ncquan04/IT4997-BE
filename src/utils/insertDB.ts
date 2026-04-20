@@ -14,7 +14,7 @@ import OrderModel from "../models/order-model.mongo";
 import PaymentModel from "../models/payment-model.mongo";
 import { AttendanceStatus } from "../shared/models/attendance-model";
 
-const DATA_DIR = resolve(__dirname, "../../data");
+const DATA_DIR = resolve(process.cwd(), "data");
 
 function loadJSON(fileName: string) {
     const filePath = resolve(DATA_DIR, fileName);
