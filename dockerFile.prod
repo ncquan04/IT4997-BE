@@ -11,7 +11,7 @@ ENV PUPPETEER_SKIP_DOWNLOAD=true
 COPY package*.json ./
 RUN --mount=type=cache,target=/root/.npm \
     NODE_OPTIONS=--max-old-space-size=512 npm install --legacy-peer-deps
-RUN npm run build
+RUN NODE_OPTIONS=--max-old-space-size=512 npm run build
 
 # ---- Production stage ----
 FROM node:20-alpine
