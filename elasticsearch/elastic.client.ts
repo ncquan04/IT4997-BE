@@ -31,13 +31,10 @@ interface SearchParams {
 }
 export class ElasticSearch {
     private static readonly esClient: ES.Client = new ES.Client({
-        node: `https://${ip}:${port || 9200}`,
+        node: `http://${ip}:${port || 9200}`,
         auth: {
             username: user,
             password: pass,
-        },
-        tls: {
-            rejectUnauthorized: false,
         },
         sniffOnStart: false,
         sniffInterval: false,
