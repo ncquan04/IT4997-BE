@@ -1,5 +1,7 @@
 import { Request, Response } from "express";
 import mongoose from "mongoose";
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const xl = require("excel4node");
 import PayrollModel from "../models/payroll-model.mongo";
 import AttendanceModel from "../models/attendance-model.mongo";
 import UserModel from "../models/user-model.mongo";
@@ -285,4 +287,150 @@ export const getMyPayroll = async (
         .sort({ year: -1, month: -1 })
         .lean();
     return res.json(records);
+};
+
+// ─── Xuất bảng lương ra Excel / CSV ──────────────────────────────────────────
+export const exportPayroll = async (
+    req: AuthenticatedRequest,
+    res: Response
+) => {
+    const { month, year, branchId, format = "xlsx" } = req.query as Record<string, string>;
+
+    if (!month || !year) {
+        return res.status(400).json({ message: "Cần truyền month và year." });
+    }
+
+    const filter: any = {
+        month: parseInt(month),
+        year: parseInt(year),
+    };
+
+    const targetBranch = req.targetBranchId ?? branchId;
+    if (targetBranch) filter.branchId = new mongoose.Types.ObjectId(targetBranch);
+
+    const records = await PayrollModel.find(filter)
+        .populate("employeeId", "userName email phoneNumber role")
+        .sort({ employeeId: 1 })
+        .lean();
+
+    const filename = `payroll-${year}-${String(month).padStart(2, "0")}`;
+
+    // ── CSV ──────────────────────────────────────────────────────────────────
+    if (format === "csv") {
+        const headers = [
+            "Nhân viên", "Email", "Vai trò",
+            "Tháng", "Năm",
+            "Ngày chuẩn", "Ngày công", "Ngày nghỉ",
+            "Lương cơ bản", "Phụ cấp", "Khấu trừ", "Lương gộp",
+            "Người phụ thuộc", "Căn cứ BH", "NV đóng BH", "DN đóng BH",
+            "Thu nhập tính thuế", "Thuế TNCN",
+            "Lương thực lĩnh", "Trạng thái",
+        ];
+
+        const escape = (v: any) => {
+            const s = String(v ?? "");
+            return s.includes(",") || s.includes('"') || s.includes("\n")
+                ? `"${s.replace(/"/g, '""')}"`
+                : s;
+        };
+
+        const rows = records.map((r) => {
+            const emp = r.employeeId as any;
+            return [
+                emp?.userName ?? "",
+                emp?.email ?? "",
+                emp?.role ?? "",
+                r.month, r.year,
+                r.standardDays, r.workingDays, r.leaveDays,
+                r.baseSalary, r.allowances, r.deductions, r.grossSalary,
+                r.dependants, r.insuranceBase, r.employeeInsurance, r.employerInsurance,
+                r.taxableIncome, r.personalIncomeTax,
+                r.actualSalary, r.status,
+            ].map(escape).join(",");
+        });
+
+        const csv = [headers.join(","), ...rows].join("\r\n");
+        res.setHeader("Content-Type", "text/csv; charset=utf-8");
+        res.setHeader("Content-Disposition", `attachment; filename="${filename}.csv"`);
+        // BOM for Excel UTF-8 recognition
+        return res.end("\uFEFF" + csv);
+    }
+
+    // ── Excel (excel4node) ────────────────────────────────────────────────────
+    const wb = new xl.Workbook();
+    const ws = wb.addWorksheet(`Payroll ${month}-${year}`);
+
+    const headerStyle = wb.createStyle({
+        font: { bold: true, color: "#FFFFFF", size: 11 },
+        fill: { type: "pattern", patternType: "solid", fgColor: "#2563EB" },
+        alignment: { horizontal: "center", vertical: "center", wrapText: true },
+        border: {
+            left: { style: "thin" }, right: { style: "thin" },
+            top: { style: "thin" }, bottom: { style: "thin" },
+        },
+    });
+
+    const cellStyle = wb.createStyle({
+        border: {
+            left: { style: "thin" }, right: { style: "thin" },
+            top: { style: "thin" }, bottom: { style: "thin" },
+        },
+        alignment: { vertical: "center" },
+    });
+
+    const numStyle = wb.createStyle({
+        numberFormat: "#,##0",
+        border: {
+            left: { style: "thin" }, right: { style: "thin" },
+            top: { style: "thin" }, bottom: { style: "thin" },
+        },
+        alignment: { horizontal: "right", vertical: "center" },
+    });
+
+    const headers = [
+        "Nhân viên", "Email", "Vai trò",
+        "Tháng", "Năm",
+        "Ngày chuẩn", "Ngày công", "Ngày nghỉ",
+        "Lương cơ bản", "Phụ cấp", "Khấu trừ", "Lương gộp",
+        "Người PT", "Căn cứ BH", "NV đóng BH", "DN đóng BH",
+        "TN tính thuế", "Thuế TNCN",
+        "Lương thực lĩnh", "Trạng thái",
+    ];
+    const colWidths = [20, 25, 12, 6, 6, 8, 8, 8, 15, 12, 12, 15, 8, 15, 14, 14, 15, 12, 18, 12];
+
+    headers.forEach((h, i) => {
+        ws.cell(1, i + 1).string(h).style(headerStyle);
+        ws.column(i + 1).setWidth(colWidths[i]);
+    });
+    ws.row(1).setHeight(30);
+
+    const numericCols = new Set([4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]);
+
+    records.forEach((r, idx) => {
+        const row = idx + 2;
+        const emp = r.employeeId as any;
+        const values = [
+            emp?.userName ?? "",
+            emp?.email ?? "",
+            emp?.role ?? "",
+            r.month, r.year,
+            r.standardDays, r.workingDays, r.leaveDays,
+            r.baseSalary, r.allowances, r.deductions, r.grossSalary,
+            r.dependants, r.insuranceBase, r.employeeInsurance, r.employerInsurance,
+            r.taxableIncome, r.personalIncomeTax,
+            r.actualSalary, r.status,
+        ];
+
+        values.forEach((v, i) => {
+            const col = i + 1;
+            if (numericCols.has(col) && typeof v === "number") {
+                ws.cell(row, col).number(v).style(numStyle);
+            } else {
+                ws.cell(row, col).string(String(v ?? "")).style(cellStyle);
+            }
+        });
+    });
+
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}.xlsx"`);
+    wb.write(`${filename}.xlsx`, res);
 };

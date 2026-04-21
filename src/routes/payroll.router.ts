@@ -8,6 +8,7 @@ import {
     getPayrollList,
     updatePayrollStatus,
     getMyPayroll,
+    exportPayroll,
 } from "../services/payroll.service";
 
 const PayrollRouter = express.Router();
@@ -50,6 +51,15 @@ PayrollRouter.patch(
     verifyRole(MANAGER_ROLES),
     verifyBranchScope(BRANCH_SCOPED),
     updatePayrollStatus
+);
+
+// Xuất Excel / CSV
+PayrollRouter.get(
+    "/payroll/export",
+    auth,
+    verifyRole(MANAGER_ROLES),
+    verifyBranchScope(BRANCH_SCOPED),
+    exportPayroll
 );
 
 export default PayrollRouter;
