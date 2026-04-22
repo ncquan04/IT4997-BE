@@ -65,16 +65,18 @@ function calcPIT(taxableIncome) {
 
     const col = mongoose.connection.db.collection("payrolls");
 
-    // Lấy các bản ghi thiếu ít nhất một trong các trường mới
+    // Lấy các bản ghi thiếu field hoặc có insuranceBase = 0 trong khi actualSalary > 0
     const docs = await col.find({
       $or: [
-        { grossSalary:        { $exists: false } },
-        { insuranceBase:      { $exists: false } },
-        { employeeInsurance:  { $exists: false } },
-        { employerInsurance:  { $exists: false } },
-        { taxableIncome:      { $exists: false } },
-        { personalIncomeTax:  { $exists: false } },
-        { dependants:         { $exists: false } },
+        { grossSalary:       { $exists: false } },
+        { insuranceBase:     { $exists: false } },
+        { employeeInsurance: { $exists: false } },
+        { employerInsurance: { $exists: false } },
+        { taxableIncome:     { $exists: false } },
+        { personalIncomeTax: { $exists: false } },
+        { dependants:        { $exists: false } },
+        // fields tồn tại nhưng chưa được tính (default 0)
+        { insuranceBase: 0, actualSalary: { $gt: 0 } },
       ],
     }).toArray();
 
