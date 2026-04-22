@@ -88,8 +88,8 @@ function calcPIT(taxableIncome) {
 
     let updated = 0;
     for (const doc of docs) {
-      // grossSalary = actualSalary cũ (chưa trừ BH/thuế)
-      const grossSalary = doc.grossSalary ?? doc.actualSalary ?? 0;
+      // grossSalary: dùng || vì doc.grossSalary=0 (Mongoose default) phải fallback sang actualSalary
+      const grossSalary = doc.grossSalary || doc.actualSalary || 0;
       const dependants  = doc.dependants  ?? 0;
 
       const { insuranceBase, employeeInsurance, employerInsurance } =
