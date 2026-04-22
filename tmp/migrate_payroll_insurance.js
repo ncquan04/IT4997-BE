@@ -65,6 +65,18 @@ function calcPIT(taxableIncome) {
 
     const col = mongoose.connection.db.collection("payrolls");
 
+    const total = await col.countDocuments();
+    const zeroInsurance = await col.countDocuments({ insuranceBase: 0 });
+    const noGross = await col.countDocuments({ grossSalary: { $exists: false } });
+    console.log(`Total payroll docs: ${total}`);
+    console.log(`  insuranceBase=0: ${zeroInsurance}`);
+    console.log(`  grossSalary missing: ${noGross}`);
+    if (total > 0) {
+      const sample = await col.findOne({});
+      console.log("Sample doc keys:", Object.keys(sample));
+      console.log("Sample values: grossSalary=" + sample.grossSalary + " actualSalary=" + sample.actualSalary + " insuranceBase=" + sample.insuranceBase);
+    }
+
     // Lấy các bản ghi thiếu field hoặc có insuranceBase = 0 trong khi actualSalary > 0
     const docs = await col.find({
       $or: [
