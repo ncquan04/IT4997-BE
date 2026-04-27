@@ -19,6 +19,16 @@ const branchSchema = new Schema<BranchModelDocument>(
         managerId: { type: ObjectId as any, ref: "User", required: true },
         isActive: { type: Boolean, default: true },
         rentCost: { type: Number, default: 0 },
+        rentCostHistory: {
+            type: [
+                {
+                    amount: { type: Number, required: true, min: 0 },
+                    effectiveFrom: { type: Date, required: true },
+                    note: { type: String },
+                },
+            ],
+            default: [],
+        },
     },
     { versionKey: false, timestamps: true }
 );

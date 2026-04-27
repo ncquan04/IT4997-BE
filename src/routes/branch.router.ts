@@ -10,11 +10,13 @@ import {
     updateBranch,
     deleteBranch,
     updateBranchStatus,
+    addRentCostHistory,
 } from "../services/branch.service";
 import {
     updateBranchStatusSchema,
     createBranchSchema,
     updateBranchSchema,
+    addRentHistorySchema,
 } from "../dto/branch.dto";
 
 const BranchRouter = express.Router();
@@ -49,6 +51,14 @@ BranchRouter.patch(
     verifyRole([UserRole.ADMIN]),
     validate(updateBranchStatusSchema),
     updateBranchStatus
+);
+
+BranchRouter.post(
+    "/branches/:id/rent-history",
+    auth,
+    verifyRole([UserRole.ADMIN]),
+    validate(addRentHistorySchema),
+    addRentCostHistory
 );
 
 // Public routes

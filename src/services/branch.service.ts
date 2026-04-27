@@ -41,7 +41,9 @@ export const getBranchById = async (req: Request, res: Response) => {
             return res.status(400).json({ message: "Invalid branch id" });
         }
 
-        const branch = await BranchModel.findById(id).populate("managerId", "userName email").lean();
+        const branch = await BranchModel.findById(id)
+            .populate("managerId", "userName email")
+            .lean();
 
         if (!branch) {
             return res.status(404).json({ message: "Branch not found" });
@@ -58,7 +60,8 @@ export const getBranchById = async (req: Request, res: Response) => {
 
 export const createBranch = async (req: Request, res: Response) => {
     try {
-        const { name, address, phone, managerId, isActive, rentCost } = req.body;
+        const { name, address, phone, managerId, isActive, rentCost } =
+            req.body;
 
         if (!mongoose.isValidObjectId(managerId)) {
             return res.status(400).json({ message: "Invalid managerId" });
@@ -85,7 +88,8 @@ export const createBranch = async (req: Request, res: Response) => {
 export const updateBranch = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        const { name, address, phone, managerId, isActive, rentCost } = req.body;
+        const { name, address, phone, managerId, isActive, rentCost } =
+            req.body;
 
         if (!mongoose.isValidObjectId(id)) {
             return res.status(400).json({ message: "Invalid branch id" });
@@ -164,10 +168,60 @@ export const updateBranchStatus = async (req: Request, res: Response) => {
             return res.status(404).json({ message: "Branch not found" });
         }
 
-        return res.status(200).json({ message: "Branch status updated successfully" });
+        return res
+            .status(200)
+            .json({ message: "Branch status updated successfully" });
     } catch (error) {
         return res.status(500).json({
             message: "Failed to update branch status",
+            error,
+        });
+    }
+};
+
+export const addRentCostHistory = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const { amount, effectiveFrom, note } = req.body as {
+            amount: number;
+            effectiveFrom: string;
+            note?: string;
+        };
+
+        if (!mongoose.isValidObjectId(id)) {
+            return res.status(400).json({ message: "Invalid branch id" });
+        }
+
+        const effectiveDate = new Date(effectiveFrom);
+        if (isNaN(effectiveDate.getTime())) {
+            return res
+                .status(400)
+                .json({ message: "Invalid effectiveFrom date" });
+        }
+
+        const entry = { amount, effectiveFrom: effectiveDate, note };
+
+        // If effectiveFrom <= now, also update the static rentCost field
+        const update: Record<string, unknown> = {
+            $push: { rentCostHistory: entry },
+        };
+        if (effectiveDate <= new Date()) {
+            update.$set = { rentCost: amount };
+        }
+
+        const updated = await BranchModel.findByIdAndUpdate(id, update, {
+            new: true,
+            runValidators: true,
+        }).lean();
+
+        if (!updated) {
+            return res.status(404).json({ message: "Branch not found" });
+        }
+
+        return res.status(201).json(updated);
+    } catch (error) {
+        return res.status(500).json({
+            message: "Failed to add rent cost history",
             error,
         });
     }

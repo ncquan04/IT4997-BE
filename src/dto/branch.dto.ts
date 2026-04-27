@@ -27,3 +27,11 @@ export const updateBranchSchema = yup
         rentCost: yup.number().min(0),
     })
     .required();
+
+export const addRentHistorySchema = yup
+    .object({
+        amount: yup.number().min(0).required("amount is required"),
+        effectiveFrom: yup.string().required("effectiveFrom is required"),
+        note: yup.string(),
+    })
+    .required();

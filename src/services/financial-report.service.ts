@@ -987,15 +987,47 @@ export const getPayrollCost = async (req: Request, res: Response) => {
     }
 };
 
+// ─── Rent cost period helper ──────────────────────────────────────────────────
+
+function computePeriodRent(
+    history: { amount: number; effectiveFrom: Date | string }[],
+    fallbackRent: number,
+    from: Date,
+    to: Date
+): number {
+    let total = 0;
+    let current = new Date(from.getFullYear(), from.getMonth(), 1);
+    const end = new Date(to.getFullYear(), to.getMonth(), 1);
+
+    while (current <= end) {
+        const active = [...history]
+            .filter((e) => new Date(e.effectiveFrom) <= current)
+            .sort(
+                (a, b) =>
+                    new Date(b.effectiveFrom).getTime() -
+                    new Date(a.effectiveFrom).getTime()
+            )[0];
+
+        if (active) {
+            total += active.amount;
+        } else if (fallbackRent > 0) {
+            total += fallbackRent;
+        }
+        current = new Date(current.getFullYear(), current.getMonth() + 1, 1);
+    }
+    return total;
+}
+
 export const getRentCost = async (req: Request, res: Response) => {
     try {
         const branchId = parseBranchId(req);
+        const { from, to } = req.query;
 
         const filter: Record<string, unknown> = {};
         if (branchId) filter._id = branchId;
 
         const branches = await BranchModel.find(filter)
-            .select("name rentCost isActive")
+            .select("name rentCost rentCostHistory isActive")
             .lean();
 
         const totalRentCost = branches.reduce(
@@ -1008,11 +1040,36 @@ export const getRentCost = async (req: Request, res: Response) => {
             0
         );
 
+        // Period-accurate rent when from/to provided
+        let totalRentForPeriod: number | undefined;
+        const fromMs = Number(from);
+        const toMs = Number(to);
+        if (from && to && !isNaN(fromMs) && !isNaN(toMs)) {
+            const fromDate = new Date(fromMs);
+            const toDate = new Date(toMs);
+            totalRentForPeriod = activeBranches.reduce((sum, b) => {
+                return (
+                    sum +
+                    computePeriodRent(
+                        b.rentCostHistory ?? [],
+                        b.rentCost ?? 0,
+                        fromDate,
+                        toDate
+                    )
+                );
+            }, 0);
+        }
+
         const byBranch = branches.map((b) => ({
             _id: String(b._id),
             branchName: b.name,
             rentCost: b.rentCost ?? 0,
             isActive: b.isActive,
+            rentCostHistory: (b.rentCostHistory ?? []).map((e: any) => ({
+                amount: e.amount,
+                effectiveFrom: e.effectiveFrom,
+                note: e.note,
+            })),
         }));
 
         return res.status(200).json({
@@ -1021,6 +1078,7 @@ export const getRentCost = async (req: Request, res: Response) => {
                 totalActiveRentCost,
                 branchCount: branches.length,
                 activeBranchCount: activeBranches.length,
+                ...(totalRentForPeriod !== undefined && { totalRentForPeriod }),
             },
             byBranch,
         });
