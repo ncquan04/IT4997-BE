@@ -33,6 +33,7 @@ import LoyaltyRouter from "./routes/loyalty.router";
 import AttendanceRouter from "./routes/attendance.router";
 import PayrollRouter from "./routes/payroll.router";
 import HrEmployeeRouter from "./routes/hr-employee.router";
+import EventRouter from "./routes/event.router";
 
 const app = express();
 const httpServer = createServer(app);
@@ -93,6 +94,7 @@ try {
     app.use("/api", AttendanceRouter);
     app.use("/api", PayrollRouter);
     app.use("/api", HrEmployeeRouter);
+    app.use("/api", EventRouter);
     app.use("/api", async function (req, res) {
         res.status(200).json("hello");
     });
