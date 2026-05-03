@@ -37,7 +37,12 @@ passport.use(
                         userName: profile.displayName || email.split("@")[0],
                     });
                 }
-                return done(null, user);
+                return done(null, {
+                    id: String(user._id),
+                    role: user.role,
+                    email: user.email,
+                    branchId: user.branchId ? String(user.branchId) : undefined,
+                });
             } catch (err) {
                 return done(err as Error);
             }
