@@ -1,3 +1,4 @@
+import { Response } from "express";
 import UserModel from "../models/user-model.mongo";
 import bcrypt from "bcrypt";
 import { jwtSignToken } from "../utils/jwt-token";
@@ -6,13 +7,14 @@ import { isProd } from "../utils";
 const REFRESH_TOKEN_TTL = 30 * 24 * 60 * 60 * 1000;
 const ACCESS_TOKEN_TTL = 24 * 60 * 60 * 1000;
 
-const setAuthCookies = (res: any, user: any) => {
-    const payload = {
-        id: user.id ?? user._id,
-        role: user.role,
-        email: user.email,
-        branchId: user.branchId,
-    };
+type UserPayload = {
+    id: string;
+    role: string;
+    email: string;
+    branchId?: string;
+};
+
+const setAuthCookies = (res: Response, payload: UserPayload): UserPayload => {
     const cookieOptions = {
         httpOnly: true,
         secure: isProd(),
@@ -72,7 +74,13 @@ export const login = async (req: any, res: any) => {
             return res.status(401).json({ message: "Invalid email or password" });
         }
 
-        const userSam = setAuthCookies(res, user);
+        const payload: UserPayload = {
+            id: String(user._id),
+            role: user.role,
+            email: user.email,
+            branchId: user.branchId ? String(user.branchId) : undefined,
+        };
+        const userSam = setAuthCookies(res, payload);
         return res.status(200).json({ message: "Login successful", user: userSam });
     } catch (error) {
         console.error("Error in signIn:", error);
@@ -80,9 +88,9 @@ export const login = async (req: any, res: any) => {
     }
 };
 
-export const googleCallback = async (req: any, res: any) => {
+export const googleCallback = async (req: any, res: Response) => {
     try {
-        const user = req.user;
+        const user = req.user as UserPayload | undefined;
         if (!user) {
             return res.redirect(`${process.env.FRONTEND_URL}/login?error=google_auth_failed`);
         }
