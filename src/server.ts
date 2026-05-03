@@ -3,6 +3,7 @@ import cookieParser from "cookie-parser";
 import bodyParser from "body-parser";
 import cors from "cors";
 import express from "express";
+import passport from "passport";
 import { createServer } from "http";
 import helmet from "helmet";
 import { AddressInfo } from "net";
@@ -59,6 +60,7 @@ app.use(
     })
 );
 app.use(cookieParser());
+app.use(passport.initialize());
 app.use(bodyParser.json({ limit: "500mb" }));
 app.use(
     helmet.contentSecurityPolicy({

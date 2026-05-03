@@ -1,9 +1,29 @@
 import UserModel from "../models/user-model.mongo";
 import bcrypt from "bcrypt";
-import crypto from "crypto";
 import { jwtSignToken } from "../utils/jwt-token";
 import { isProd } from "../utils";
-// 14 days in milliseconds
+
+const REFRESH_TOKEN_TTL = 30 * 24 * 60 * 60 * 1000;
+const ACCESS_TOKEN_TTL = 24 * 60 * 60 * 1000;
+
+const setAuthCookies = (res: any, user: any) => {
+    const payload = {
+        id: user._id,
+        role: user.role,
+        email: user.email,
+        branchId: user.branchId,
+    };
+    const cookieOptions = {
+        httpOnly: true,
+        secure: isProd(),
+        sameSite: (isProd() ? "none" : "lax") as "none" | "lax",
+        domain: process.env.COOKIE_DOMAIN || undefined,
+        path: "/",
+    };
+    res.cookie("access_token", jwtSignToken(payload, ACCESS_TOKEN_TTL), { ...cookieOptions, maxAge: ACCESS_TOKEN_TTL });
+    res.cookie("refresh_token", jwtSignToken(payload, REFRESH_TOKEN_TTL), { ...cookieOptions, maxAge: REFRESH_TOKEN_TTL });
+    return payload;
+};
 
 export const register = async (req: any, res: any) => {
     try {
@@ -39,70 +59,43 @@ export const register = async (req: any, res: any) => {
 };
 
 export const login = async (req: any, res: any) => {
-    const cookieOptions = {
-        httpOnly: true,
-        secure: isProd(),
-        sameSite: (isProd() ? "none" : "lax") as "none" | "lax",
-        domain: process.env.COOKIE_DOMAIN || undefined,
-        path: "/",
-    };
     try {
-        const body = req.body;
-        const { email, password } = body;
+        const { email, password } = req.body;
 
-        // Find user by email (pseudo code)
         const user = await UserModel.findOne({ email });
 
-        if (!user) {
-            return res.status(401).json({
-                message: "Invalid email or password",
-            });
+        if (!user || !user.password) {
+            return res.status(401).json({ message: "Invalid email or password" });
         }
-        // Compare password (pseudo code)
         const isPasswordValid = await bcrypt.compare(password, user.password);
         if (!isPasswordValid) {
-            return res.status(401).json({
-                message: "Invalid email or password",
-            });
+            return res.status(401).json({ message: "Invalid email or password" });
         }
 
-        const userSam = {
-            id: crypto.randomUUID(),
-            role: user.role,
-            email: user.email,
-            branchId: user.branchId,
-        };
-
-        // Generate tokens (pseudo code)
-        const REFRESH_TOKEN_TTL = 30 * 24 * 60 * 60 * 1000;
-        const ACCESS_TOKEN_TTL = 24 * 60 * 60 * 1000;
-
-        const accessToken = jwtSignToken(
-            { ...userSam, id: user._id },
-            ACCESS_TOKEN_TTL
-        );
-
-        const refreshToken = jwtSignToken(
-            { ...userSam, id: user._id },
-            REFRESH_TOKEN_TTL
-        );
-
-        res.cookie("access_token", accessToken, {
-            ...cookieOptions,
-            maxAge: ACCESS_TOKEN_TTL,
-        });
-        res.cookie("refresh_token", refreshToken, {
-            ...cookieOptions,
-            maxAge: REFRESH_TOKEN_TTL,
-        });
-
-        return res
-            .status(200)
-            .json({ message: "Login successful", user: userSam });
+        const userSam = setAuthCookies(res, user);
+        return res.status(200).json({ message: "Login successful", user: userSam });
     } catch (error) {
         console.error("Error in signIn:", error);
         res.status(500).json({ message: "Internal server error" });
     }
+};
+
+export const googleCallback = async (req: any, res: any) => {
+    try {
+        const user = req.user;
+        if (!user) {
+            return res.redirect(`${process.env.FRONTEND_URL}/login?error=google_auth_failed`);
+        }
+        setAuthCookies(res, user);
+        return res.redirect(`${process.env.FRONTEND_URL}/auth/google/callback`);
+    } catch (error) {
+        console.error("Error in googleCallback:", error);
+        return res.redirect(`${process.env.FRONTEND_URL}/login?error=server_error`);
+    }
+};
+
+export const getMe = async (req: any, res: any) => {
+    return res.status(200).json({ user: req.user });
 };
 
 // export const refreshToken = async (req: any, res: any) => {
