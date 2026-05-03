@@ -38,9 +38,19 @@ services:
             - xpack.security.http.ssl.enabled=false
         ports:
             - "9200:9200"
-    volumes:
-      - es_data:/usr/share/elasticsearch/data
-            - "4000:4000" # Nginx sẽ proxy tới cổng này
+        volumes:
+            - es_data:/usr/share/elasticsearch/data
+        networks:
+            - backendnet
+
+    backend:
+        build:
+            context: .
+            dockerfile: dockerFile.dev
+        container_name: backend
+        restart: unless-stopped
+        ports:
+            - "4000:4000"
         env_file:
             - .env.dev
         depends_on:
