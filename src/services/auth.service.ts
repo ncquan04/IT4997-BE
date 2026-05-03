@@ -8,7 +8,7 @@ const ACCESS_TOKEN_TTL = 24 * 60 * 60 * 1000;
 
 const setAuthCookies = (res: any, user: any) => {
     const payload = {
-        id: user._id,
+        id: user.id ?? user._id,
         role: user.role,
         email: user.email,
         branchId: user.branchId,
