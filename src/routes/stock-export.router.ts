@@ -20,7 +20,7 @@ const StockExportRouter = express.Router();
 StockExportRouter.get(
     "/stock-exports",
     auth,
-    verifyRole([UserRole.ADMIN, UserRole.MANAGER, UserRole.WAREHOUSE]),
+    verifyRole([UserRole.ADMIN, UserRole.MANAGER, UserRole.WAREHOUSE, UserRole.SALES]),
     verifyBranchScope(),
     getStockExportList
 );
@@ -28,7 +28,7 @@ StockExportRouter.get(
 StockExportRouter.get(
     "/stock-exports/:id",
     auth,
-    verifyRole([UserRole.ADMIN, UserRole.MANAGER, UserRole.WAREHOUSE]),
+    verifyRole([UserRole.ADMIN, UserRole.MANAGER, UserRole.WAREHOUSE, UserRole.SALES]),
     verifyBranchScope(),
     getStockExportById
 );
@@ -36,7 +36,7 @@ StockExportRouter.get(
 StockExportRouter.post(
     "/stock-exports",
     auth,
-    verifyRole([UserRole.ADMIN, UserRole.MANAGER, UserRole.WAREHOUSE]),
+    verifyRole([UserRole.ADMIN, UserRole.MANAGER, UserRole.WAREHOUSE, UserRole.SALES]),
     verifyBranchScope(),
     validate(createStockExportSchema),
     createStockExport
