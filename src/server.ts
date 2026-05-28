@@ -26,6 +26,7 @@ import BranchRouter from "./routes/branch.router";
 import InventoryRouter from "./routes/inventory.router";
 import StockImportRouter from "./routes/stock-import.router";
 import StockExportRouter from "./routes/stock-export.router";
+import StockTransferRouter from "./routes/stock-transfer.router";
 import SupplierRouter from "./routes/supplier.router";
 import WarrantyRouter from "./routes/warranty.router";
 import CouponRouter from "./routes/coupon.router";
@@ -88,6 +89,7 @@ try {
     app.use("/api", InventoryRouter);
     app.use("/api", StockImportRouter);
     app.use("/api", StockExportRouter);
+    app.use("/api", StockTransferRouter);
     app.use("/api", SupplierRouter);
     app.use("/api", WarrantyRouter);
     app.use("/api", CouponRouter);

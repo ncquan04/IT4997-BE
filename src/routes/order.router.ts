@@ -173,6 +173,11 @@ OrderRouter.post(
                     message: `Not enough stock for "${title}". Available: ${available}, requested: ${requested}`,
                 });
             }
+            if (error.message === "NO_ACTIVE_BRANCH") {
+                return res.status(400).json({
+                    message: "No active branch is available to fulfill this order",
+                });
+            }
 
             // Lỗi server không xác định
             return res.status(500).json({
