@@ -3,7 +3,11 @@ import { auth } from "../middlewares/auth";
 import { verifyRole } from "../middlewares/verifyRole";
 import { verifyBranchScope } from "../middlewares/verifyBranchScope";
 import { UserRole } from "../shared/models/user-model";
-import { orderServices } from "../services/order.service";
+import {
+    orderServices,
+    planBranchConsolidation,
+    applyBranchConsolidation,
+} from "../services/order.service";
 import { validate } from "../middlewares/validate";
 import { changeOrderSchema, createOrderSchema } from "../dto/order.dto";
 import {
@@ -11,7 +15,6 @@ import {
     reverseInventoryForOrder,
     ImeiAssignment,
 } from "../services/stock-export.service";
-import BranchInventoryModel from "../models/branch-inventory-model.mongo";
 import OrderModel from "../models/order-model.mongo";
 import mongoose from "mongoose";
 import { Contacts } from "../shared/contacts";
@@ -23,84 +26,6 @@ import { notificationService } from "../services/notification.service";
 
 const STATUS_ORDER = Contacts.Status.Order;
 const PAYMENT_STATUS = Contacts.Status.Payment;
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Auto-assign IMEIs for an order at checkout time.
-// Iterates through branchPriority in order; for each item takes IMEIs greedily
-// from the nearest branch that has stock, spilling to the next if needed.
-// Throws NOT_ENOUGH_STOCK:<title>:... if total inventory across all branches
-// cannot satisfy the requested quantity.
-// ─────────────────────────────────────────────────────────────────────────────
-const autoAssignImeis = async (
-    listProduct: IProductItem[],
-    branchPriority: string[],
-    session: mongoose.ClientSession
-): Promise<ImeiAssignment[]> => {
-    const result: ImeiAssignment[] = [];
-
-    for (const item of listProduct) {
-        let remaining = item.quantity;
-
-        // If caller provided no priority list, fall back to all branches with stock
-        let branchesToTry = branchPriority;
-        if (branchesToTry.length === 0) {
-            const inventories = await BranchInventoryModel.find(
-                {
-                    productId: new mongoose.Types.ObjectId(
-                        String(item.productId)
-                    ),
-                    variantId: new mongoose.Types.ObjectId(
-                        String(item.variantId)
-                    ),
-                    quantity: { $gt: 0 },
-                },
-                { branchId: 1 }
-            )
-                .session(session)
-                .lean();
-            branchesToTry = inventories.map((inv) => String(inv.branchId));
-        }
-
-        for (const branchId of branchesToTry) {
-            if (remaining === 0) break;
-
-            const inventory = await BranchInventoryModel.findOne(
-                {
-                    branchId: new mongoose.Types.ObjectId(branchId),
-                    productId: new mongoose.Types.ObjectId(
-                        String(item.productId)
-                    ),
-                    variantId: new mongoose.Types.ObjectId(
-                        String(item.variantId)
-                    ),
-                },
-                { imeiList: 1 }
-            )
-                .session(session)
-                .lean();
-
-            if (!inventory?.imeiList?.length) continue;
-
-            const available = inventory.imeiList as string[];
-            const take = Math.min(remaining, available.length);
-            result.push({
-                productId: String(item.productId),
-                variantId: String(item.variantId),
-                branchId,
-                imeiList: available.slice(0, take),
-            });
-            remaining -= take;
-        }
-
-        if (remaining > 0) {
-            throw new Error(
-                `NOT_ENOUGH_STOCK:${item.title}:available=${item.quantity - remaining}:requested=${item.quantity}`
-            );
-        }
-    }
-
-    return result;
-};
 
 const OrderRouter = express.Router();
 
@@ -203,16 +128,17 @@ OrderRouter.post(
                 toAddress,
                 numberPhone,
                 userName,
-                branchPriority = [],
             } = req.body;
             const userId = (req as any).user.id;
 
-            // Auto-assign IMEIs from branches in priority order (nearest first)
-            const imeiAssignments = await autoAssignImeis(
-                listProduct as IProductItem[],
-                branchPriority as string[],
-                session
-            );
+            // Consolidate the order into a single fulfilment branch, moving any
+            // shortfall in from other branches via internal transfers (same model
+            // as the cart flow).
+            const { mainBranchId, imeiAssignments, pendingTransfers } =
+                await planBranchConsolidation(
+                    listProduct as IProductItem[],
+                    session
+                );
 
             const [newOrder] = await OrderModel.create(
                 [
@@ -225,10 +151,18 @@ OrderRouter.post(
                         numberPhone,
                         userName,
                         statusOrder: STATUS_ORDER.ORDERED,
+                        branchId: mainBranchId,
                         imeiAssignments,
                     },
                 ],
                 { session }
+            );
+
+            await applyBranchConsolidation(
+                String(newOrder._id),
+                mainBranchId,
+                pendingTransfers,
+                session
             );
 
             await session.commitTransaction();

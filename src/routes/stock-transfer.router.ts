@@ -42,7 +42,7 @@ StockTransferRouter.post(
 StockTransferRouter.patch(
     "/stock-transfers/:id/status",
     auth,
-    verifyRole([UserRole.ADMIN, UserRole.MANAGER]),
+    verifyRole([UserRole.ADMIN, UserRole.MANAGER, UserRole.WAREHOUSE]),
     verifyBranchScope(),
     validate(updateStockTransferStatusSchema),
     updateStockTransferStatus

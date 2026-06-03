@@ -83,18 +83,27 @@ const deductInventory = async (
     session: mongoose.ClientSession
 ) => {
     for (const assignment of assignments) {
-        await BranchInventoryModel.findOneAndUpdate(
+        // Conditional decrement: the quantity guard makes the update match no
+        // document (and return null) instead of driving stock negative — Mongoose
+        // does not enforce schema min:0 on a $inc.
+        const result = await BranchInventoryModel.findOneAndUpdate(
             {
                 branchId: toObjectId(branchId),
                 productId: toObjectId(assignment.productId),
                 variantId: toObjectId(assignment.variantId),
+                quantity: { $gte: assignment.imeiList.length },
             },
             {
                 $inc: { quantity: -assignment.imeiList.length },
                 $pull: { imeiList: { $in: assignment.imeiList } },
             },
-            { session, runValidators: true }
+            { new: true, session, runValidators: true }
         );
+        if (!result) {
+            throw new Error(
+                `Insufficient stock for productId=${assignment.productId} in branch ${branchId}`
+            );
+        }
     }
 };
 
@@ -187,7 +196,30 @@ export const createStockTransfer = async (req: Request, res: Response) => {
             return res.status(400).json({ message: "Each item must have at least one IMEI" });
         }
 
-        const stockTransferItems = normalizedItems.map((i) => ({
+        // Merge items that target the same (productId, variantId) so a payload
+        // repeating a product/variant cannot over-reserve, and reject any IMEI
+        // duplicated across items. Validation/deduction then run on the merged
+        // totals (one entry per product/variant).
+        const mergedMap = new Map<string, ImeiAssignment>();
+        for (const it of normalizedItems) {
+            const key = `${it.productId}|${it.variantId}`;
+            const existing = mergedMap.get(key);
+            if (!existing) {
+                mergedMap.set(key, { ...it, imeiList: [...it.imeiList] });
+                continue;
+            }
+            for (const imei of it.imeiList) {
+                if (existing.imeiList.includes(imei)) {
+                    return res.status(400).json({
+                        message: `Duplicate IMEI across items: ${imei}`,
+                    });
+                }
+                existing.imeiList.push(imei);
+            }
+        }
+        const mergedItems = Array.from(mergedMap.values());
+
+        const stockTransferItems = mergedItems.map((i) => ({
             productId: toObjectId(i.productId),
             variantId: toObjectId(i.variantId),
             quantity: i.imeiList.length,
@@ -199,8 +231,8 @@ export const createStockTransfer = async (req: Request, res: Response) => {
         try {
             // Validate then immediately reserve (deduct) so concurrent transfers can't
             // claim the same IMEIs. Reserved stock is restored if the transfer is cancelled.
-            await validateImeiAvailability(effectiveBranchId, normalizedItems, session);
-            await deductInventory(effectiveBranchId, normalizedItems, session);
+            await validateImeiAvailability(effectiveBranchId, mergedItems, session);
+            await deductInventory(effectiveBranchId, mergedItems, session);
 
             const [stockTransfer] = await StockTransferModel.create(
                 [
@@ -388,6 +420,16 @@ export const updateStockTransferStatus = async (req: Request, res: Response) => 
             if (status === STATUS_TRANSFER.COMPLETED && toId !== targetBranchId) {
                 await session.abortTransaction();
                 return res.status(403).json({ message: "Only the receiving branch can mark a transfer as completed." });
+            }
+            // Cancelling an in-transit transfer claws the goods back to the
+            // sender, so only the sending branch (or admin) may do it.
+            if (
+                status === STATUS_TRANSFER.CANCELLED &&
+                Number(stockTransfer.status) === STATUS_TRANSFER.IN_TRANSIT &&
+                fromId !== targetBranchId
+            ) {
+                await session.abortTransaction();
+                return res.status(403).json({ message: "Only the sending branch can cancel an in-transit transfer." });
             }
         }
 

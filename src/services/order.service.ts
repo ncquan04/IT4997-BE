@@ -17,6 +17,200 @@ const STATUS_ORDER = Contacts.Status.Order;
 const PAYMENT_STATUS = Contacts.Status.Payment;
 const PAYMENT_METHOD = Contacts.PaymentMethod;
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Branch consolidation for an order — shared by the cart (createOrderFromCart)
+// and buy-now (/orders/creator) flows.
+//
+// planBranchConsolidation is READ-ONLY: it picks a single fulfilment (main)
+// branch, computes the IMEIs that will ship from it (its own units + units to be
+// transferred in), and the per-source pieces to move. Throws NOT_ENOUGH_STOCK if
+// the active branches cannot satisfy the order.
+//
+// applyBranchConsolidation MUTATES (call AFTER the order exists, in the SAME
+// transaction): deducts each source branch (guarded so stock can't go negative),
+// credits mainBranch, and records a COMPLETED StockTransfer per source as the
+// audit trail. The order then ships from mainBranch alone.
+// ─────────────────────────────────────────────────────────────────────────────
+export interface ConsolidationPlan {
+    mainBranchId: any;
+    imeiAssignments: {
+        productId: any;
+        variantId: any;
+        branchId: any;
+        imeiList: string[];
+    }[];
+    pendingTransfers: Map<string, any[]>;
+}
+
+export const planBranchConsolidation = async (
+    listProduct: IProductItem[],
+    session: mongoose.ClientSession
+): Promise<ConsolidationPlan> => {
+    // Pick the branch that can fulfil the largest portion of the order on its own.
+    const branches = await BranchModel.find({ isActive: true }).session(session);
+    let mainBranchId: any = null;
+    let maxScore = -1;
+
+    for (const branch of branches) {
+        let score = 0;
+        for (const item of listProduct) {
+            const inv = await BranchInventoryModel.findOne({
+                branchId: branch._id,
+                productId: item.productId,
+                variantId: item.variantId,
+            }).session(session);
+            if (inv) {
+                score += Math.min(inv.quantity, item.quantity);
+            }
+        }
+        if (score > maxScore) {
+            maxScore = score;
+            mainBranchId = branch._id;
+        }
+    }
+
+    if (!mainBranchId) {
+        throw new Error("NO_ACTIVE_BRANCH");
+    }
+
+    const pendingTransfers = new Map<string, any[]>(); // fromBranchId -> items
+    const imeiAssignments: ConsolidationPlan["imeiAssignments"] = [];
+
+    for (const item of listProduct) {
+        const mainInv = await BranchInventoryModel.findOne({
+            branchId: mainBranchId,
+            productId: item.productId,
+            variantId: item.variantId,
+        }).session(session);
+
+        const mainImeis = (mainInv?.imeiList ?? []).filter(Boolean);
+        const fromMain = mainImeis.slice(
+            0,
+            Math.min(mainImeis.length, item.quantity)
+        );
+        const itemImeisAtMain: string[] = [...fromMain];
+        let shortage = item.quantity - fromMain.length;
+
+        if (shortage > 0) {
+            const otherInvs = await BranchInventoryModel.find({
+                branchId: { $ne: mainBranchId },
+                productId: item.productId,
+                variantId: item.variantId,
+                quantity: { $gt: 0 },
+            }).session(session);
+
+            // Track IMEIs already pulled in this transaction so we never assign the same one twice.
+            const alreadyPicked = new Set<string>();
+
+            for (const other of otherInvs) {
+                if (shortage <= 0) break;
+
+                const branchImeis = (other.imeiList ?? []).filter(
+                    (imei) => imei && !alreadyPicked.has(imei)
+                );
+                if (branchImeis.length === 0) continue;
+
+                const take = Math.min(
+                    branchImeis.length,
+                    other.quantity,
+                    shortage
+                );
+                if (take <= 0) continue;
+
+                const pickedImeis = branchImeis.slice(0, take);
+                pickedImeis.forEach((imei) => alreadyPicked.add(imei));
+                shortage -= take;
+                itemImeisAtMain.push(...pickedImeis);
+
+                const fromBranchStr = String(other.branchId);
+                if (!pendingTransfers.has(fromBranchStr)) {
+                    pendingTransfers.set(fromBranchStr, []);
+                }
+                pendingTransfers.get(fromBranchStr)!.push({
+                    productId: item.productId,
+                    variantId: item.variantId,
+                    quantity: take,
+                    imeiList: pickedImeis,
+                });
+            }
+
+            if (shortage > 0) {
+                const fulfilled = item.quantity - shortage;
+                throw new Error(
+                    `NOT_ENOUGH_STOCK:${item.title}:available=${fulfilled}:requested=${item.quantity}`
+                );
+            }
+        }
+
+        imeiAssignments.push({
+            productId: item.productId,
+            variantId: item.variantId,
+            branchId: mainBranchId,
+            imeiList: itemImeisAtMain,
+        });
+    }
+
+    return { mainBranchId, imeiAssignments, pendingTransfers };
+};
+
+export const applyBranchConsolidation = async (
+    orderId: string,
+    mainBranchId: any,
+    pendingTransfers: Map<string, any[]>,
+    session: mongoose.ClientSession
+): Promise<void> => {
+    const orderRef = String(orderId).slice(-6).toUpperCase();
+    for (const [fromId, transferItems] of pendingTransfers.entries()) {
+        for (const ti of transferItems) {
+            const moved = await BranchInventoryModel.findOneAndUpdate(
+                {
+                    branchId: new mongoose.Types.ObjectId(fromId),
+                    productId: ti.productId,
+                    variantId: ti.variantId,
+                    quantity: { $gte: ti.imeiList.length },
+                },
+                {
+                    $inc: { quantity: -ti.imeiList.length },
+                    $pull: { imeiList: { $in: ti.imeiList } },
+                },
+                { session, runValidators: true }
+            );
+            if (!moved) {
+                throw new Error(
+                    `NOT_ENOUGH_STOCK:${ti.productId}:available=0:requested=${ti.imeiList.length}`
+                );
+            }
+            await BranchInventoryModel.findOneAndUpdate(
+                {
+                    branchId: mainBranchId,
+                    productId: ti.productId,
+                    variantId: ti.variantId,
+                },
+                {
+                    $inc: { quantity: ti.imeiList.length },
+                    $push: { imeiList: { $each: ti.imeiList } },
+                },
+                { upsert: true, session, runValidators: true }
+            );
+        }
+
+        await StockTransferModel.create(
+            [
+                {
+                    fromBranchId: new mongoose.Types.ObjectId(fromId),
+                    toBranchId: mainBranchId,
+                    items: transferItems,
+                    status: STATUS_TRANSFER.COMPLETED,
+                    note: `Auto-transfer for consolidated Order ${orderRef}`,
+                    createdBy: null, // system-generated
+                    orderId: String(orderId),
+                },
+            ],
+            { session }
+        );
+    }
+};
+
 class OrderService {
     async orderInfoWidthListProductDetail(orderId: string) {
         const agg = [
@@ -213,96 +407,11 @@ class OrderService {
                 }
             }
 
-            // Auto-Transfer / Branch Fulfillment Logic
-            const branches = await BranchModel.find({ isActive: true }).session(session);
-            let mainBranchId: any = null;
-            let maxScore = -1;
+            // Pick a fulfilment branch and plan the cross-branch consolidation.
+            const { mainBranchId, imeiAssignments, pendingTransfers } =
+                await planBranchConsolidation(listProduct, session);
 
-            if (branches.length > 0) {
-                // Pick the branch that can fulfill the largest portion of the cart on its own
-                for (const branch of branches) {
-                    let score = 0;
-                    for (const item of listProduct) {
-                        const inv = await BranchInventoryModel.findOne({
-                            branchId: branch._id,
-                            productId: item.productId,
-                            variantId: item.variantId
-                        }).session(session);
-                        if (inv) {
-                            score += Math.min(inv.quantity, item.quantity);
-                        }
-                    }
-                    if (score > maxScore) {
-                        maxScore = score;
-                        mainBranchId = branch._id;
-                    }
-                }
-            }
-
-            if (!mainBranchId) {
-                throw new Error("NO_ACTIVE_BRANCH");
-            }
-
-            const pendingTransfers = new Map<string, any[]>(); // fromBranchId -> items
-
-            for (const item of listProduct) {
-                const mainInv = await BranchInventoryModel.findOne({
-                    branchId: mainBranchId,
-                    productId: item.productId,
-                    variantId: item.variantId
-                }).session(session);
-
-                const mainQty = mainInv ? mainInv.quantity : 0;
-                let shortage = item.quantity - mainQty;
-
-                if (shortage <= 0) continue;
-
-                const otherInvs = await BranchInventoryModel.find({
-                    branchId: { $ne: mainBranchId },
-                    productId: item.productId,
-                    variantId: item.variantId,
-                    quantity: { $gt: 0 }
-                }).session(session);
-
-                // Track IMEIs already pulled in this transaction so we never assign the same one twice.
-                const alreadyPicked = new Set<string>();
-
-                for (const other of otherInvs) {
-                    if (shortage <= 0) break;
-
-                    const branchImeis = (other.imeiList ?? []).filter(
-                        (imei) => imei && !alreadyPicked.has(imei)
-                    );
-                    if (branchImeis.length === 0) continue;
-
-                    const take = Math.min(branchImeis.length, other.quantity, shortage);
-                    if (take <= 0) continue;
-
-                    const pickedImeis = branchImeis.slice(0, take);
-                    pickedImeis.forEach((imei) => alreadyPicked.add(imei));
-                    shortage -= take;
-
-                    const fromBranchStr = String(other.branchId);
-                    if (!pendingTransfers.has(fromBranchStr)) {
-                        pendingTransfers.set(fromBranchStr, []);
-                    }
-                    pendingTransfers.get(fromBranchStr)!.push({
-                        productId: item.productId,
-                        variantId: item.variantId,
-                        quantity: take,
-                        imeiList: pickedImeis,
-                    });
-                }
-
-                if (shortage > 0) {
-                    const fulfilled = item.quantity - shortage;
-                    throw new Error(
-                        `NOT_ENOUGH_STOCK:${item.title}:available=${fulfilled}:requested=${item.quantity}`
-                    );
-                }
-            }
-
-            // Tạo đơn hàng mới
+            // Tạo đơn hàng mới — lưu IMEI sẽ xuất từ mainBranch để /ship hoạt động.
             const newOrders = await OrderModel.create(
                 [
                     {
@@ -311,42 +420,22 @@ class OrderService {
                         sumPrice: sumPrice,
                         note: note || "",
                         toAddress: toAddress,
+                        statusOrder: STATUS_ORDER.ORDERED,
                         branchId: mainBranchId,
-                        // statusOrder tự động lấy default từ Schema
+                        imeiAssignments,
                     },
                 ],
                 { session }
             );
 
-            // Generate Auto-Transfers. Reserve (deduct) the picked IMEIs from each
-            // source branch atomically so concurrent orders can't claim them again.
-            const orderIdStr = String(newOrders[0]._id);
-            for (const [fromId, transferItems] of pendingTransfers.entries()) {
-                for (const ti of transferItems) {
-                    await BranchInventoryModel.findOneAndUpdate(
-                        {
-                            branchId: new mongoose.Types.ObjectId(fromId),
-                            productId: ti.productId,
-                            variantId: ti.variantId,
-                        },
-                        {
-                            $inc: { quantity: -ti.imeiList.length },
-                            $pull: { imeiList: { $in: ti.imeiList } },
-                        },
-                        { session, runValidators: true }
-                    );
-                }
-
-                await StockTransferModel.create([{
-                    fromBranchId: new mongoose.Types.ObjectId(fromId),
-                    toBranchId: mainBranchId,
-                    items: transferItems,
-                    status: STATUS_TRANSFER.PENDING,
-                    note: `Auto-transfer for consolidated Order ${orderIdStr.slice(-6).toUpperCase()}`,
-                    createdBy: null, // system-generated
-                    orderId: orderIdStr,
-                }], { session });
-            }
+            // Physically consolidate the shortfall into mainBranch + record the
+            // COMPLETED transfers (audit trail), in the SAME transaction.
+            await applyBranchConsolidation(
+                String(newOrders[0]._id),
+                mainBranchId,
+                pendingTransfers,
+                session
+            );
 
             // Xóa giỏ hàng
             await CartModel.deleteMany(
@@ -355,8 +444,6 @@ class OrderService {
             );
 
             await session.commitTransaction();
-            // --- BẮT ĐẦU ĐOẠN BẮN THÔNG BÁO ---
-            const createdOrder = newOrders[0]; // Lấy object đơn hàng ra khỏi mảng
 
             return newOrders[0]; // Trả về đơn hàng vừa tạo
         } catch (error) {
