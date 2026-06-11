@@ -22,9 +22,9 @@ export const jwtDecodeToken = function (token: string): string | object | null {
     return null;
 };
 
-export const jwtSignToken = (payload: any, expiresIn: number) => {
+export const jwtSignToken = (payload: any, expiresIn: number | string) => {
     const accessToken = jwt.sign(payload, TOKEN_SECRET, {
-        expiresIn,
+        expiresIn: expiresIn as any,
     });
     return accessToken;
 };

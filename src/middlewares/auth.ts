@@ -4,8 +4,7 @@ import { jwtDecodeToken, jwtSignToken } from "../utils/jwt-token";
 const dotenv = require("dotenv");
 
 const result = dotenv.config();
-const REFRESH_TOKEN_TTL = 30 * 24 * 60 * 60 * 1000;
-const ACCESS_TOKEN_TTL = 24 * 60 * 60 * 1000;
+const ACCESS_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 
 export const auth = async (req, res, next) => {
     const token = req.cookies["access_token"];
@@ -71,12 +70,12 @@ export const auth = async (req, res, next) => {
                 role: userRefresh.role,
                 email: userRefresh.email,
             },
-            ACCESS_TOKEN_TTL
+            "24h"
         );
 
         res.cookie("access_token", newAccessToken, {
             ...cookieOptions,
-            maxAge: ACCESS_TOKEN_TTL,
+            maxAge: ACCESS_TOKEN_TTL_MS,
         });
 
         req.user = {

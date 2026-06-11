@@ -4,8 +4,8 @@ import bcrypt from "bcrypt";
 import { jwtSignToken } from "../utils/jwt-token";
 import { isProd } from "../utils";
 
-const REFRESH_TOKEN_TTL = 30 * 24 * 60 * 60 * 1000;
-const ACCESS_TOKEN_TTL = 24 * 60 * 60 * 1000;
+const ACCESS_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
+const REFRESH_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
 type UserPayload = {
     id: string;
@@ -22,8 +22,8 @@ const setAuthCookies = (res: Response, payload: UserPayload): UserPayload => {
         domain: process.env.COOKIE_DOMAIN || undefined,
         path: "/",
     };
-    res.cookie("access_token", jwtSignToken(payload, ACCESS_TOKEN_TTL), { ...cookieOptions, maxAge: ACCESS_TOKEN_TTL });
-    res.cookie("refresh_token", jwtSignToken(payload, REFRESH_TOKEN_TTL), { ...cookieOptions, maxAge: REFRESH_TOKEN_TTL });
+    res.cookie("access_token", jwtSignToken(payload, "24h"), { ...cookieOptions, maxAge: ACCESS_TOKEN_TTL_MS });
+    res.cookie("refresh_token", jwtSignToken(payload, "30d"), { ...cookieOptions, maxAge: REFRESH_TOKEN_TTL_MS });
     return payload;
 };
 
