@@ -52,6 +52,20 @@ export async function deleteKey(key: string) {
     return client.del(key);
 }
 
+/* ============ AUTH BLACKLIST ============ */
+const BLACKLIST_PREFIX = "auth:blacklist:";
+
+export async function addToBlacklist(jti: string, ttlSeconds: number) {
+    const client = await getRedisClient();
+    await client.set(`${BLACKLIST_PREFIX}${jti}`, "1", { EX: ttlSeconds });
+}
+
+export async function isBlacklisted(jti: string): Promise<boolean> {
+    const client = await getRedisClient();
+    const val = await client.get(`${BLACKLIST_PREFIX}${jti}`);
+    return val !== null;
+}
+
 export async function deleteKeysByPattern(pattern: string) {
     const client = await getRedisClient();
     // 1. Tìm tất cả các key khớp với pattern (VD: "products:base_mapped:*")

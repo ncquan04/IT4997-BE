@@ -1,7 +1,7 @@
 import express from "express";
 import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
-import { register, login, googleCallback, getMe } from "../services/auth.service";
+import { register, login, googleCallback, getMe, logout } from "../services/auth.service";
 import { validate } from "../middlewares/validate";
 import { registerSchema, loginSchema } from "../dto/auth.dto";
 import { auth } from "../middlewares/auth";
@@ -67,7 +67,7 @@ AuthRouter.get(
 );
 
 // AuthRouter.post("/auth/refresh-token", refreshToken);
-// AuthRouter.post("/auth/logout", logout);
+AuthRouter.post("/auth/logout", logout);
 
 AuthRouter.get(
     "/auth/admin-protected",

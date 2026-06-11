@@ -1,6 +1,7 @@
 import UserModel from "../models/user-model.mongo";
 import { isProd } from "../utils";
 import { jwtDecodeToken, jwtSignToken } from "../utils/jwt-token";
+import { isBlacklisted } from "../cache/redisUtils";
 const dotenv = require("dotenv");
 
 const result = dotenv.config();
@@ -30,6 +31,18 @@ export const auth = async (req, res, next) => {
     try {
         decodedRefresh = jwtDecodeToken(refreshToken);
     } catch {}
+
+    if (!decodedAccess && !decodedRefresh) {
+        return res.status(401).json({ error: "Invalid token" });
+    }
+
+    // Kiểm tra blacklist song song cho 2 token
+    const [accessBlacklisted, refreshBlacklisted] = await Promise.all([
+        (decodedAccess as any)?.jti ? isBlacklisted((decodedAccess as any).jti) : Promise.resolve(false),
+        (decodedRefresh as any)?.jti ? isBlacklisted((decodedRefresh as any).jti) : Promise.resolve(false),
+    ]);
+    if (accessBlacklisted) decodedAccess = null;
+    if (refreshBlacklisted) decodedRefresh = null;
 
     if (!decodedAccess && !decodedRefresh) {
         return res.status(401).json({ error: "Invalid token" });

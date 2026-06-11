@@ -1,4 +1,5 @@
 import jwt from "jsonwebtoken";
+import { randomUUID } from "crypto";
 const dotenv = require("dotenv");
 const result = dotenv.config();
 const TOKEN_SECRET = process.env.ACCESS_TOKEN_SECRET || "your-default-secret";
@@ -23,8 +24,10 @@ export const jwtDecodeToken = function (token: string): string | object | null {
 };
 
 export const jwtSignToken = (payload: any, expiresIn: number | string) => {
-    const accessToken = jwt.sign(payload, TOKEN_SECRET, {
-        expiresIn: expiresIn as any,
-    });
+    const accessToken = jwt.sign(
+        { ...payload, jti: randomUUID() },
+        TOKEN_SECRET,
+        { expiresIn: expiresIn as any }
+    );
     return accessToken;
 };

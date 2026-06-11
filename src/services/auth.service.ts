@@ -1,8 +1,9 @@
 import { Response } from "express";
 import UserModel from "../models/user-model.mongo";
 import bcrypt from "bcrypt";
-import { jwtSignToken } from "../utils/jwt-token";
+import { jwtDecodeToken, jwtSignToken } from "../utils/jwt-token";
 import { isProd } from "../utils";
+import { addToBlacklist } from "../cache/redisUtils";
 
 const ACCESS_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 const REFRESH_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -104,6 +105,36 @@ export const googleCallback = async (req: any, res: Response) => {
 
 export const getMe = async (req: any, res: any) => {
     return res.status(200).json({ user: req.user });
+};
+
+export const logout = async (req: any, res: any) => {
+    const accessToken = req.cookies["access_token"];
+    const refreshToken = req.cookies["refresh_token"];
+
+    const cookieOptions = {
+        httpOnly: true,
+        secure: isProd(),
+        sameSite: (isProd() ? "none" : "lax") as "none" | "lax",
+        domain: process.env.COOKIE_DOMAIN || undefined,
+        path: "/",
+    };
+
+    const now = Math.floor(Date.now() / 1000);
+
+    for (const token of [accessToken, refreshToken]) {
+        if (!token) continue;
+        const decoded = jwtDecodeToken(token) as any;
+        if (decoded?.jti && decoded?.exp) {
+            const remaining = decoded.exp - now;
+            if (remaining > 0) {
+                await addToBlacklist(decoded.jti, remaining);
+            }
+        }
+    }
+
+    res.clearCookie("access_token", cookieOptions);
+    res.clearCookie("refresh_token", cookieOptions);
+    return res.status(200).json({ message: "Logged out successfully" });
 };
 
 // export const refreshToken = async (req: any, res: any) => {
