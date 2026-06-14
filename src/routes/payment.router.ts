@@ -1,7 +1,10 @@
 import express from "express";
 import Stripe from "stripe";
+import mongoose from "mongoose";
 import { Contacts } from "../shared/contacts";
 import { auth } from "../middlewares/auth";
+import { verifyRole } from "../middlewares/verifyRole";
+import { UserRole } from "../shared/models/user-model";
 import { decryptObject, encryptObject } from "../utils";
 import { orderServices } from "../services/order.service";
 import {
@@ -40,6 +43,13 @@ PaymentRouter.post("/payment/creator", auth, async (req, res) => {
         }
         if (!method) {
             return res.status(400).json("method is required");
+        }
+        // MoMo chưa được triển khai → bail sớm nhất có thể, trước khi tạo
+        // payment / Stripe session / tính giảm giá.
+        if (method === PAYMENT_METHOD.MOMO) {
+            return res
+                .status(400)
+                .json("MoMo payment is not supported yet");
         }
 
         const orderRes =
@@ -210,28 +220,50 @@ PaymentRouter.get("/payment/weeb-hook", (req, res) => {
     return res.status(200).json("oke");
 });
 
-PaymentRouter.put("/payment/change", auth, async (req, res) => {
-    try {
-        const userId = (req as any).user.id;
-        const { status, paymentId } = req.body;
-        await paymentService.updatePayment(
-            {
-                status,
-            },
-            paymentId
-        );
-        notificationService.pushNotification(
-            "PAYMENT",
-            "Payment update",
-            `Payment #${paymentId.toString()} updated successfully`,
-            paymentId.toString(),
-            userId
-        );
-        return res.status(200).json(true);
-    } catch (err) {
-        console.log("Change status payment error: ", err);
-        return res.status(500).json("Internal server error");
+PaymentRouter.put(
+    "/payment/change",
+    auth,
+    // Đổi trạng thái thanh toán là thao tác nhạy cảm (có thể đánh dấu PAID) →
+    // chỉ ADMIN / MANAGER được phép.
+    verifyRole([UserRole.ADMIN, UserRole.MANAGER]),
+    async (req, res) => {
+        try {
+            const userId = (req as any).user.id;
+            const { status, paymentId } = req.body;
+
+            if (!mongoose.isValidObjectId(paymentId)) {
+                return res.status(400).json({ message: "Invalid paymentId" });
+            }
+            const validStatuses = Object.values(
+                Contacts.Status.Payment
+            ) as number[];
+            if (!validStatuses.includes(Number(status))) {
+                return res
+                    .status(400)
+                    .json({ message: "Invalid payment status" });
+            }
+
+            await paymentService.updatePayment(
+                {
+                    status: Number(
+                        status
+                    ) as (typeof Contacts.Status.Payment)[keyof typeof Contacts.Status.Payment],
+                },
+                paymentId
+            );
+            notificationService.pushNotification(
+                "PAYMENT",
+                "Payment update",
+                `Payment #${paymentId.toString()} updated successfully`,
+                paymentId.toString(),
+                userId
+            );
+            return res.status(200).json(true);
+        } catch (err) {
+            console.log("Change status payment error: ", err);
+            return res.status(500).json("Internal server error");
+        }
     }
-});
+);
 
 export default PaymentRouter;
