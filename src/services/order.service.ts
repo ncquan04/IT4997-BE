@@ -294,12 +294,17 @@ class OrderService {
         return await OrderModel.aggregate(agg);
     }
 
-    async updateOrder(params: Partial<IOrder>, orderId: string) {
+    async updateOrder(
+        params: Partial<IOrder>,
+        orderId: string,
+        session?: mongoose.ClientSession
+    ) {
         await OrderModel.findByIdAndUpdate(
             new mongoose.Types.ObjectId(orderId),
             {
                 ...params,
-            }
+            },
+            session ? { session } : {}
         );
     }
 

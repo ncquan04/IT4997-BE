@@ -102,14 +102,16 @@ const expireStaleForUser = async (
  * Gọi sau khi Payment chuyển sang PAID.
  * @param paidAmount - Giá trị đơn sau khi trừ coupon + memberDiscount + pointsDiscount (VND)
  * @param orderId    - ObjectId chuỗi của đơn hàng
+ * @returns Số điểm đã tích (để caller lưu vào payment.pointsEarned, tránh tính lại).
  */
 export const awardPoints = async (
     userId: string,
     paidAmount: number,
-    orderId: string
-): Promise<void> => {
-    const user = await UserModel.findById(userId);
-    if (!user) return;
+    orderId: string,
+    session?: mongoose.ClientSession
+): Promise<number> => {
+    const user = await UserModel.findById(userId).session(session ?? null);
+    if (!user) return 0;
 
     const configs = await loadTierConfigs();
     const now = Date.now();
@@ -129,22 +131,27 @@ export const awardPoints = async (
 
     const newTier = resolveTier(newSpentInWindow, configs);
     const earnedPoints = Math.floor(paidAmount / EARN_RATE);
+    const opts = session ? { session } : {};
 
-    await Promise.all([
-        // Tạo EARN transaction nếu có điểm
-        earnedPoints > 0
-            ? PointTransactionModel.create({
-                  userId: toObjectId(userId),
-                  type: PointTransactionType.EARN,
-                  points: earnedPoints,
-                  orderId: toObjectId(orderId),
-                  expiresAt: now + POINTS_EXPIRY_MS,
-                  expired: false,
-                  note: `Tích điểm từ đơn hàng #${orderId}`,
-              })
-            : null,
-        // Cập nhật user
-        UserModel.findByIdAndUpdate(userId, {
+    if (earnedPoints > 0) {
+        await PointTransactionModel.create(
+            [
+                {
+                    userId: toObjectId(userId),
+                    type: PointTransactionType.EARN,
+                    points: earnedPoints,
+                    orderId: toObjectId(orderId),
+                    expiresAt: now + POINTS_EXPIRY_MS,
+                    expired: false,
+                    note: `Tích điểm từ đơn hàng #${orderId}`,
+                },
+            ],
+            opts
+        );
+    }
+    await UserModel.findByIdAndUpdate(
+        userId,
+        {
             $inc: {
                 loyaltyPoints: earnedPoints,
                 totalSpent: paidAmount,
@@ -154,8 +161,11 @@ export const awardPoints = async (
                 spentInWindow: newSpentInWindow,
                 windowStartAt: newWindowStartAt,
             },
-        }),
-    ]);
+        },
+        opts
+    );
+
+    return earnedPoints;
 };
 
 /**

@@ -106,27 +106,21 @@ PaymentRouter.post("/payment/creator", auth, async (req, res) => {
             couponDiscount + memberDiscount + pointsDiscount
         );
 
-        await Promise.all([
-            paymentService.CreatePayment({
-                _id: "",
-                userId,
-                orderId: orderRes[0]._id,
-                method: method ?? PAYMENT_METHOD.COD,
-                totalMoney: finalTotal,
-                discount: totalDiscount,
-                delivery: delivery || DELIVERY.EXPRESS,
-                status: STATUS_PAYMENT.UNPAID,
-                couponCode: validatedCouponCode ?? undefined,
-                couponDiscount,
-                memberDiscount,
-                pointsRedeemed: validatedPointsRedeemed,
-                pointsDiscount,
-            }),
-            orderServices.updateOrder(
-                { statusOrder: Contacts.Status.Order.PROCESSING },
-                orderId
-            ),
-        ]);
+        await paymentService.CreatePayment({
+            _id: "",
+            userId,
+            orderId: orderRes[0]._id,
+            method: method ?? PAYMENT_METHOD.COD,
+            totalMoney: finalTotal,
+            discount: totalDiscount,
+            delivery: delivery || DELIVERY.EXPRESS,
+            status: STATUS_PAYMENT.UNPAID,
+            couponCode: validatedCouponCode ?? undefined,
+            couponDiscount,
+            memberDiscount,
+            pointsRedeemed: validatedPointsRedeemed,
+            pointsDiscount,
+        });
 
         // return res.redirect(303, urlRedric);
         return res.status(200).json(urlRedirect);

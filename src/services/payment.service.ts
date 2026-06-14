@@ -206,119 +206,136 @@ class PaymentService {
             }
         );
     }
+    private async settlePaidPayment(
+        payment: { _id: any; userId: any; totalMoney?: number },
+        orderId: string,
+        session: mongoose.ClientSession
+    ) {
+        await orderServices.updateOrder(
+            { statusOrder: STATUS_ORDER.PROCESSING },
+            orderId,
+            session
+        );
+
+        const netPaid = payment.totalMoney ?? 0;
+        if (netPaid > 0) {
+            const earned = await awardPoints(
+                payment.userId.toString(),
+                netPaid,
+                orderId,
+                session
+            );
+            await PaymentModel.findByIdAndUpdate(
+                payment._id,
+                { $set: { pointsEarned: earned } },
+                { session }
+            );
+        }
+    }
+
     async paymentCheckUpdate(
         { orderId, orderType, status }: ISignatureTranscript,
         userId: string
     ) {
         switch (orderType) {
-            case PAYMENT_METHOD.STRIPE:
-                if (status === STATUS_PAYMENT_TRANSCRIPT.SUCCESS) {
-                    const paymentUpdated = await PaymentModel.findOneAndUpdate(
+            case PAYMENT_METHOD.STRIPE: {
+                if (status !== STATUS_PAYMENT_TRANSCRIPT.SUCCESS) {
+                    await PaymentModel.findOneAndUpdate(
                         {
                             orderId: new mongoose.Types.ObjectId(orderId),
                             status: STATUS_PAYMENT.UNPAID,
                         },
-                        {
-                            $set: {
-                                status: STATUS_PAYMENT.PAID,
-                            },
-                        },
-                        { new: true }
-                    );
-
-                    if (paymentUpdated) {
-                        await orderServices.updateOrder(
-                            { statusOrder: STATUS_ORDER.PROCESSING },
-                            orderId
-                        );
-
-                        const netPaid = paymentUpdated.totalMoney ?? 0;
-                        if (netPaid > 0) {
-                            const earned = Math.floor(netPaid / 100);
-                            await awardPoints(
-                                paymentUpdated.userId.toString(),
-                                netPaid,
-                                orderId
-                            );
-                            await PaymentModel.findByIdAndUpdate(
-                                paymentUpdated._id,
-                                { $set: { pointsEarned: earned } }
-                            );
-                        }
-
-                        notificationService.pushNotification(
-                            "PAYMENT",
-                            "Payment paid",
-                            `PaymentId #${paymentUpdated._id.toString()} created successfully`,
-                            orderId.toString(),
-                            userId
-                        );
-                        notificationService.pushNotification(
-                            "ORDER",
-                            "Order created",
-                            `OrderId #${orderId.toString()} created successfully`,
-                            orderId.toString(),
-                            userId
-                        );
-                    }
-
-                    return STATUS_PAYMENT_CHECKUPDATE.SUCCESS;
-                } else {
-                    const paymentUpdated = await PaymentModel.findOneAndUpdate(
-                        {
-                            orderId: new mongoose.Types.ObjectId(orderId),
-                            status: STATUS_PAYMENT.UNPAID,
-                        },
-                        {
-                            $set: {
-                                status: STATUS_PAYMENT.FAILED,
-                            },
-                        },
-                        { new: true }
+                        { $set: { status: STATUS_PAYMENT.FAILED } }
                     );
                     return STATUS_PAYMENT_CHECKUPDATE.CANCEL;
                 }
-            case PAYMENT_METHOD.MOMO:
-                break;
-            case PAYMENT_METHOD.COD:
-                await orderServices.updateOrder(
-                    { statusOrder: STATUS_ORDER.PROCESSING },
-                    orderId
-                );
 
-                // Tích điểm loyalty cho COD (tin tưởng đơn đặt hàng)
-                const codPayment = await PaymentModel.findOneAndUpdate(
-                    {
-                        orderId: new mongoose.Types.ObjectId(orderId),
-                        status: STATUS_PAYMENT.UNPAID,
-                    },
-                    { $set: { status: STATUS_PAYMENT.PAID } },
-                    { new: true }
-                );
-                if (codPayment) {
-                    // totalMoney đã là số tiền thực thu
-                    const netPaid = codPayment.totalMoney ?? 0;
-                    if (netPaid > 0) {
-                        const earned = Math.floor(netPaid / 100);
-                        await awardPoints(
-                            codPayment.userId.toString(),
-                            netPaid,
-                            orderId
+                const session = await mongoose.startSession();
+                session.startTransaction();
+                let paymentUpdated: any = null;
+                try {
+                    paymentUpdated = await PaymentModel.findOneAndUpdate(
+                        {
+                            orderId: new mongoose.Types.ObjectId(orderId),
+                            status: STATUS_PAYMENT.UNPAID,
+                        },
+                        { $set: { status: STATUS_PAYMENT.PAID } },
+                        { new: true, session }
+                    );
+                    if (paymentUpdated) {
+                        await this.settlePaidPayment(
+                            paymentUpdated,
+                            orderId,
+                            session
                         );
-                        await PaymentModel.findByIdAndUpdate(codPayment._id, {
-                            $set: { pointsEarned: earned },
-                        });
                     }
+                    await session.commitTransaction();
+                } catch (err) {
+                    await session.abortTransaction();
+                    throw err;
+                } finally {
+                    session.endSession();
                 }
 
-                notificationService.pushNotification(
-                    "ORDER",
-                    "Order created",
-                    `OrderId #${orderId.toString()} created successfully`,
-                    orderId.toString(),
-                    userId
-                );
+                if (paymentUpdated) {
+                    notificationService.pushNotification(
+                        "PAYMENT",
+                        "Payment paid",
+                        `Payment #${paymentUpdated._id.toString()} đã thanh toán thành công`,
+                        orderId.toString(),
+                        userId
+                    );
+                    notificationService.pushNotification(
+                        "ORDER",
+                        "Order updated",
+                        `Đơn hàng #${orderId.toString()} đã được xác nhận thanh toán`,
+                        orderId.toString(),
+                        userId
+                    );
+                }
+                return STATUS_PAYMENT_CHECKUPDATE.SUCCESS;
+            }
+            case PAYMENT_METHOD.MOMO:
+                break;
+            case PAYMENT_METHOD.COD: {
+                const session = await mongoose.startSession();
+                session.startTransaction();
+                let codPayment: any = null;
+                try {
+                    codPayment = await PaymentModel.findOneAndUpdate(
+                        {
+                            orderId: new mongoose.Types.ObjectId(orderId),
+                            status: STATUS_PAYMENT.UNPAID,
+                        },
+                        { $set: { status: STATUS_PAYMENT.PAID } },
+                        { new: true, session }
+                    );
+                    if (codPayment) {
+                        await this.settlePaidPayment(
+                            codPayment,
+                            orderId,
+                            session
+                        );
+                    }
+                    await session.commitTransaction();
+                } catch (err) {
+                    await session.abortTransaction();
+                    throw err;
+                } finally {
+                    session.endSession();
+                }
+
+                if (codPayment) {
+                    notificationService.pushNotification(
+                        "ORDER",
+                        "Order confirmed",
+                        `Đơn hàng COD #${orderId.toString()} đã được xác nhận`,
+                        orderId.toString(),
+                        userId
+                    );
+                }
                 return STATUS_PAYMENT_CHECKUPDATE.PROCESS;
+            }
             default:
                 return STATUS_PAYMENT_CHECKUPDATE.CANCEL;
         }
