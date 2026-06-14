@@ -4,7 +4,6 @@ import { Contacts } from "../shared/contacts";
 import { encryptObject } from "../utils";
 import { IOrder } from "../shared/models/order-model";
 import { stripeService } from "./stripe.services";
-import { momoService } from "./momo.service";
 import { orderServices } from "./order.service";
 import mongoose from "mongoose";
 import { notificationService } from "./notification.service";
@@ -25,9 +24,10 @@ export interface ISignatureTranscript {
 class PaymentService {
     async paymentTransctip(
         method: (typeof PAYMENT_METHOD)[keyof typeof PAYMENT_METHOD],
-        order: IOrder
+        order: IOrder,
+        totalReduction: number = 0
     ) {
-        const { _id: orderId, listProduct, sumPrice } = order;
+        const { _id: orderId, listProduct } = order;
         let urlRedirect = "";
         switch (method) {
             case PAYMENT_METHOD.STRIPE:
@@ -61,31 +61,26 @@ class PaymentService {
                         quantity: e.quantity,
                     };
                 });
+                let stripeDiscounts:
+                    | { coupon: string }[]
+                    | undefined = undefined;
+                if (totalReduction > 0) {
+                    const coupon =
+                        await stripeService.createAmountOffCoupon(
+                            totalReduction
+                        );
+                    stripeDiscounts = [{ coupon: coupon.id }];
+                }
+
                 const stripeMethod = await stripeService.createCheckoutSession(
                     lineItem,
                     urlSuccess,
-                    urlCancel
+                    urlCancel,
+                    stripeDiscounts
                 );
                 urlRedirect = stripeMethod.url;
                 break;
             case PAYMENT_METHOD.MOMO:
-                momoService.setConfig({
-                    redirectUrl:
-                        process.env.WEB_URL +
-                        "/checkout/" +
-                        encryptObject({
-                            orderId: orderId,
-                            orderType: PAYMENT_METHOD.MOMO,
-                            status: STATUS_PAYMENT_TRANSCRIPT.CHECK_UPDATE,
-                        } as ISignatureTranscript),
-                });
-                const momoMethod = await momoService.createPayment({
-                    amount: (sumPrice * 1000) as number,
-                    orderId: orderId + Date.now(),
-                    orderInfo: "Payment transcript Momo",
-                });
-                console.log(momoMethod);
-                urlRedirect = momoMethod.payUrl;
                 break;
             case PAYMENT_METHOD.COD:
                 urlRedirect =

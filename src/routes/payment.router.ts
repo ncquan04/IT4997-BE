@@ -102,7 +102,8 @@ PaymentRouter.post("/payment/creator", auth, async (req, res) => {
 
         const urlRedirect = await paymentService.paymentTransctip(
             method,
-            orderRes[0]
+            orderRes[0],
+            couponDiscount + memberDiscount + pointsDiscount
         );
 
         await Promise.all([
