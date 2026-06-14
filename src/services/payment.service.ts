@@ -112,47 +112,91 @@ class PaymentService {
         pointsRedeemed,
         pointsDiscount,
     }: IPayment) {
-        const paymentRes = await PaymentModel.findOne({
-            orderId,
-        });
+        const session = await mongoose.startSession();
+        session.startTransaction();
+        try {
+            const paymentRes = await PaymentModel.findOne({ orderId }).session(
+                session
+            );
 
-        if (paymentRes) {
-            paymentRes.method = method;
-            paymentRes.totalMoney = totalMoney;
-            paymentRes.discount = discount;
-            paymentRes.delivery = delivery;
-            paymentRes.status = status;
-            if (couponCode) paymentRes.couponCode = couponCode;
-            if (couponDiscount) paymentRes.couponDiscount = couponDiscount;
-            if (memberDiscount) paymentRes.memberDiscount = memberDiscount;
-            return await paymentRes.save();
+            if (paymentRes) {
+                const oldRedeemed = paymentRes.pointsRedeemed ?? 0;
+                const newRedeemed = pointsRedeemed ?? 0;
+                const delta = newRedeemed - oldRedeemed;
+
+                if (delta < 0) {
+                    throw new Error("POINTS_REDUCE_NOT_SUPPORTED");
+                }
+                if (delta > 0) {
+                    const redeemed = await redeemPoints(
+                        userId.toString(),
+                        delta,
+                        orderId.toString(),
+                        session
+                    );
+                    if (redeemed !== delta) {
+                        throw new Error("POINTS_REDEEM_FAILED");
+                    }
+                }
+
+                paymentRes.method = method;
+                paymentRes.totalMoney = totalMoney;
+                paymentRes.discount = discount;
+                paymentRes.delivery = delivery;
+                paymentRes.status = status;
+                paymentRes.couponCode = couponCode ?? undefined;
+                paymentRes.couponDiscount = couponDiscount ?? 0;
+                paymentRes.memberDiscount = memberDiscount ?? 0;
+                paymentRes.pointsRedeemed = newRedeemed;
+                paymentRes.pointsDiscount = pointsDiscount ?? 0;
+
+                const saved = await paymentRes.save({ session });
+                await session.commitTransaction();
+                return saved;
+            }
+
+            let actualPointsRedeemed = 0;
+            if (pointsRedeemed && pointsRedeemed > 0) {
+                actualPointsRedeemed = await redeemPoints(
+                    userId.toString(),
+                    pointsRedeemed,
+                    orderId.toString(),
+                    session
+                );
+                if (actualPointsRedeemed !== pointsRedeemed) {
+                    throw new Error("POINTS_REDEEM_FAILED");
+                }
+            }
+
+            const [created] = await PaymentModel.create(
+                [
+                    {
+                        userId,
+                        orderId,
+                        method,
+                        totalMoney,
+                        discount,
+                        delivery,
+                        status,
+                        couponCode: couponCode ?? null,
+                        couponDiscount: couponDiscount ?? 0,
+                        memberDiscount: memberDiscount ?? 0,
+                        pointsRedeemed: actualPointsRedeemed,
+                        pointsDiscount: pointsDiscount ?? 0,
+                        pointsEarned: 0, // sẽ cập nhật khi payment xác nhận PAID
+                    },
+                ],
+                { session }
+            );
+
+            await session.commitTransaction();
+            return created;
+        } catch (err) {
+            await session.abortTransaction();
+            throw err;
+        } finally {
+            session.endSession();
         }
-
-        // Thực hiện đổi điểm nếu user dùng điểm tích lũy
-        const actualPointsRedeemed =
-            pointsRedeemed && pointsRedeemed > 0
-                ? await redeemPoints(
-                      userId.toString(),
-                      pointsRedeemed,
-                      orderId.toString()
-                  ).then(() => pointsRedeemed)
-                : 0;
-
-        return await PaymentModel.create({
-            userId,
-            orderId,
-            method,
-            totalMoney,
-            discount,
-            delivery,
-            status,
-            couponCode: couponCode ?? null,
-            couponDiscount: couponDiscount ?? 0,
-            memberDiscount: memberDiscount ?? 0,
-            pointsRedeemed: actualPointsRedeemed,
-            pointsDiscount: pointsDiscount ?? 0,
-            pointsEarned: 0, // sẽ cập nhật khi payment xác nhận PAID
-        });
     }
     async updatePaymentRes(params: Partial<IPayment>, orderId: string) {
         await PaymentModel.findOneAndUpdate(

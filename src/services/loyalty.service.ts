@@ -52,35 +52,47 @@ const resolveTier = (
  * Thu hồi (expire) các batch điểm đã hết hạn của một user.
  * Trả về tổng số điểm đã bị thu hồi.
  */
-const expireStaleForUser = async (userId: string): Promise<number> => {
+const expireStaleForUser = async (
+    userId: string,
+    session?: mongoose.ClientSession
+): Promise<number> => {
     const now = Date.now();
     const stale = await PointTransactionModel.find({
         userId: toObjectId(userId),
         type: PointTransactionType.EARN,
         expired: false,
         expiresAt: { $lt: now },
-    }).lean();
+    })
+        .session(session ?? null)
+        .lean();
 
     if (stale.length === 0) return 0;
 
     const totalExpired = stale.reduce((sum, t) => sum + t.points, 0);
     const staleIds = stale.map((t) => t._id);
+    const opts = session ? { session } : {};
 
-    await Promise.all([
-        PointTransactionModel.updateMany(
-            { _id: { $in: staleIds } },
-            { $set: { expired: true } }
-        ),
-        PointTransactionModel.create({
-            userId: toObjectId(userId),
-            type: PointTransactionType.EXPIRE,
-            points: -totalExpired,
-            note: `${stale.length} batch(es) expired`,
-        }),
-        UserModel.findByIdAndUpdate(userId, {
-            $inc: { loyaltyPoints: -totalExpired },
-        }),
-    ]);
+    await PointTransactionModel.updateMany(
+        { _id: { $in: staleIds } },
+        { $set: { expired: true } },
+        opts
+    );
+    await PointTransactionModel.create(
+        [
+            {
+                userId: toObjectId(userId),
+                type: PointTransactionType.EXPIRE,
+                points: -totalExpired,
+                note: `${stale.length} batch(es) expired`,
+            },
+        ],
+        opts
+    );
+    await UserModel.findByIdAndUpdate(
+        userId,
+        { $inc: { loyaltyPoints: -totalExpired } },
+        opts
+    );
 
     return totalExpired;
 };
@@ -210,34 +222,45 @@ export const previewRedemption = async (
 
 /**
  * Thực hiện đổi điểm (gọi khi Payment được tạo).
- * Trả về số tiền được giảm.
+ * @returns Số điểm THỰC SỰ đã trừ — bằng `pointsToRedeem` nếu thành công, `0`
+ *          nếu không đủ điểm / không hợp lệ. Caller PHẢI kiểm tra giá trị này
+ *          để tránh ghi nhận giảm giá "ảo".
  */
 export const redeemPoints = async (
     userId: string,
     pointsToRedeem: number,
-    orderId: string
+    orderId: string,
+    session?: mongoose.ClientSession
 ): Promise<number> => {
     if (pointsToRedeem <= 0) return 0;
 
-    await expireStaleForUser(userId);
+    await expireStaleForUser(userId, session);
 
-    const user = await UserModel.findById(userId);
+    const user = await UserModel.findById(userId).session(session ?? null);
     if (!user || user.loyaltyPoints < pointsToRedeem) return 0;
 
-    await Promise.all([
-        PointTransactionModel.create({
-            userId: toObjectId(userId),
-            type: PointTransactionType.REDEEM,
-            points: -pointsToRedeem,
-            orderId: toObjectId(orderId),
-            note: `Đổi điểm cho đơn hàng #${orderId}`,
-        }),
-        UserModel.findByIdAndUpdate(userId, {
-            $inc: { loyaltyPoints: -pointsToRedeem },
-        }),
-    ]);
+    const opts = session ? { session } : {};
 
-    return pointsToRedeem * REDEEM_RATE;
+    // Tuần tự khi chạy trong transaction (xem ghi chú ở expireStaleForUser).
+    await PointTransactionModel.create(
+        [
+            {
+                userId: toObjectId(userId),
+                type: PointTransactionType.REDEEM,
+                points: -pointsToRedeem,
+                orderId: toObjectId(orderId),
+                note: `Đổi điểm cho đơn hàng #${orderId}`,
+            },
+        ],
+        opts
+    );
+    await UserModel.findByIdAndUpdate(
+        userId,
+        { $inc: { loyaltyPoints: -pointsToRedeem } },
+        opts
+    );
+
+    return pointsToRedeem;
 };
 
 // ─── API Handlers ─────────────────────────────────────────────────────────────
