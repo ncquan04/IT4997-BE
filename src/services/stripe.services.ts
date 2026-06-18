@@ -16,13 +16,15 @@ class StripeService {
         line_items: any,
         success_url: string,
         cancel_url: string,
-        discounts?: Stripe.Checkout.SessionCreateParams.Discount[]
+        discounts?: Stripe.Checkout.SessionCreateParams.Discount[],
+        metadata?: Record<string, string>
     ) {
         return this.stripe.checkout.sessions.create({
             mode: "payment",
             payment_method_types: ["card"],
             line_items: line_items,
             ...(discounts && discounts.length > 0 ? { discounts } : {}),
+            ...(metadata ? { metadata } : {}),
             custom_text: {
                 submit: {
                     message: `Thanh toán bởi ${this.config.title}`,
@@ -31,6 +33,18 @@ class StripeService {
             success_url,
             cancel_url,
         });
+    }
+
+    constructWebhookEvent(
+        rawBody: Buffer | string,
+        signature: string,
+        secret: string
+    ): Stripe.Event {
+        return this.stripe.webhooks.constructEvent(rawBody, signature, secret);
+    }
+
+    retrieveCheckoutSession(sessionId: string) {
+        return this.stripe.checkout.sessions.retrieve(sessionId);
     }
 
     async createAmountOffCoupon(amountOff: number) {

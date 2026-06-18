@@ -46,7 +46,8 @@ class PaymentService {
                         orderId: orderId,
                         orderType: PAYMENT_METHOD.STRIPE,
                         status: STATUS_PAYMENT_TRANSCRIPT.SUCCESS,
-                    } as ISignatureTranscript);
+                    } as ISignatureTranscript) +
+                    "?session_id={CHECKOUT_SESSION_ID}";
 
                 const lineItem = listProduct.map((e) => {
                     return {
@@ -76,7 +77,8 @@ class PaymentService {
                     lineItem,
                     urlSuccess,
                     urlCancel,
-                    stripeDiscounts
+                    stripeDiscounts,
+                    { orderId: String(orderId) }
                 );
                 urlRedirect = stripeMethod.url;
                 break;
@@ -233,13 +235,80 @@ class PaymentService {
         }
     }
 
+    // Public, idempotent: flip Payment UNPAID -> PAID đúng MỘT lần rồi settle.
+    // Guard {status: UNPAID} đảm bảo dù webhook bị Stripe gửi lại nhiều lần,
+    // hay cả webhook lẫn /payment/confirm cùng chạy, vẫn chỉ cộng điểm/notify 1 lần.
+    // Trả về true nếu lần gọi này thực sự flip; false nếu đã PAID từ trước (no-op).
+    async markStripeSessionPaid(orderId: string): Promise<boolean> {
+        const session = await mongoose.startSession();
+        session.startTransaction();
+        let paymentUpdated: any = null;
+        try {
+            paymentUpdated = await PaymentModel.findOneAndUpdate(
+                {
+                    orderId: new mongoose.Types.ObjectId(orderId),
+                    status: STATUS_PAYMENT.UNPAID,
+                },
+                { $set: { status: STATUS_PAYMENT.PAID } },
+                { new: true, session }
+            );
+            if (paymentUpdated) {
+                await this.settlePaidPayment(paymentUpdated, orderId, session);
+            }
+            await session.commitTransaction();
+        } catch (err) {
+            await session.abortTransaction();
+            throw err;
+        } finally {
+            session.endSession();
+        }
+
+        if (paymentUpdated) {
+            const uid = paymentUpdated.userId?.toString();
+            notificationService.pushNotification(
+                "PAYMENT",
+                "Payment paid",
+                `Payment #${paymentUpdated._id.toString()} đã thanh toán thành công`,
+                orderId.toString(),
+                uid
+            );
+            notificationService.pushNotification(
+                "ORDER",
+                "Order updated",
+                `Đơn hàng #${orderId.toString()} đã được xác nhận thanh toán`,
+                orderId.toString(),
+                uid
+            );
+        }
+        return !!paymentUpdated;
+    }
+
+    // Hỏi thẳng Stripe trạng thái Checkout Session (nguồn uy quyền), rồi self-heal:
+    // nếu Stripe báo đã trả mà DB chưa PAID (webhook tới trễ), tự flip qua
+    // markStripeSessionPaid. Trả về display code (Payment_check_update) cho FE.
+    async confirmStripeSession(sessionId: string) {
+        const s = await stripeService.retrieveCheckoutSession(sessionId);
+        const orderId = s.metadata?.orderId;
+        if (s.payment_status === "paid" && orderId) {
+            await this.markStripeSessionPaid(orderId);
+            return STATUS_PAYMENT_CHECKUPDATE.SUCCESS;
+        }
+        if (s.status === "expired") {
+            return STATUS_PAYMENT_CHECKUPDATE.CANCEL;
+        }
+        return STATUS_PAYMENT_CHECKUPDATE.PROCESS;
+    }
+
     async paymentCheckUpdate(
         { orderId, orderType, status }: ISignatureTranscript,
         userId: string
     ) {
         switch (orderType) {
             case PAYMENT_METHOD.STRIPE: {
+                // Thanh toán Stripe được xác nhận bởi webhook đã ký + /payment/confirm.
+                // Nhánh này KHÔNG còn flip PAID theo redirect token (vá lỗ hổng client tự quyết).
                 if (status !== STATUS_PAYMENT_TRANSCRIPT.SUCCESS) {
+                    // Khách huỷ (cancel_url) → đánh dấu FAILED nếu vẫn còn UNPAID.
                     await PaymentModel.findOneAndUpdate(
                         {
                             orderId: new mongoose.Types.ObjectId(orderId),
@@ -249,51 +318,13 @@ class PaymentService {
                     );
                     return STATUS_PAYMENT_CHECKUPDATE.CANCEL;
                 }
-
-                const session = await mongoose.startSession();
-                session.startTransaction();
-                let paymentUpdated: any = null;
-                try {
-                    paymentUpdated = await PaymentModel.findOneAndUpdate(
-                        {
-                            orderId: new mongoose.Types.ObjectId(orderId),
-                            status: STATUS_PAYMENT.UNPAID,
-                        },
-                        { $set: { status: STATUS_PAYMENT.PAID } },
-                        { new: true, session }
-                    );
-                    if (paymentUpdated) {
-                        await this.settlePaidPayment(
-                            paymentUpdated,
-                            orderId,
-                            session
-                        );
-                    }
-                    await session.commitTransaction();
-                } catch (err) {
-                    await session.abortTransaction();
-                    throw err;
-                } finally {
-                    session.endSession();
-                }
-
-                if (paymentUpdated) {
-                    notificationService.pushNotification(
-                        "PAYMENT",
-                        "Payment paid",
-                        `Payment #${paymentUpdated._id.toString()} đã thanh toán thành công`,
-                        orderId.toString(),
-                        userId
-                    );
-                    notificationService.pushNotification(
-                        "ORDER",
-                        "Order updated",
-                        `Đơn hàng #${orderId.toString()} đã được xác nhận thanh toán`,
-                        orderId.toString(),
-                        userId
-                    );
-                }
-                return STATUS_PAYMENT_CHECKUPDATE.SUCCESS;
+                // Đường success_url do /payment/confirm xử lý; ở đây chỉ đọc trạng thái hiện tại.
+                const paymentRes = await PaymentModel.findOne({
+                    orderId: new mongoose.Types.ObjectId(orderId),
+                });
+                return paymentRes?.status === STATUS_PAYMENT.PAID
+                    ? STATUS_PAYMENT_CHECKUPDATE.SUCCESS
+                    : STATUS_PAYMENT_CHECKUPDATE.PROCESS;
             }
             case PAYMENT_METHOD.MOMO:
                 break;

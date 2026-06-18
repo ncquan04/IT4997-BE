@@ -11,6 +11,7 @@ import {
     ISignatureTranscript,
     paymentService,
 } from "../services/payment.service";
+import { stripeService } from "../services/stripe.services";
 import { notificationService } from "../services/notification.service";
 import { couponService } from "../services/coupon.service";
 import {
@@ -214,10 +215,50 @@ PaymentRouter.get("/payment/check-update/:id", auth, async (req, res) => {
         return res.status(500).json("Server error");
     }
 });
-//momo-weeb-hook
-PaymentRouter.get("/payment/weeb-hook", (req, res) => {
-    console.log("req, ", req?.body);
-    return res.status(200).json("oke");
+PaymentRouter.post("/payment/webhook", async (req, res) => {
+    const sig = req.headers["stripe-signature"] as string | undefined;
+    const secret = process.env.STRIPE_WEBHOOK_SECRET;
+
+    if (!secret || !sig) {
+        return res.status(400).send("Missing signature or webhook secret");
+    }
+
+    let event: Stripe.Event;
+    try {
+        event = stripeService.constructWebhookEvent(req.body, sig, secret);
+    } catch (err: any) {
+        console.error("Stripe signature verification failed:", err.message);
+        return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+
+    try {
+        if (event.type === "checkout.session.completed") {
+            const s = event.data.object as Stripe.Checkout.Session;
+            const orderId = s.metadata?.orderId;
+            if (s.payment_status === "paid" && orderId) {
+                await paymentService.markStripeSessionPaid(orderId);
+            }
+        }
+        return res.status(200).json({ received: true });
+    } catch (err) {
+        console.error("Webhook processing error:", err);
+        return res.status(500).send("Webhook handler failed");
+    }
+});
+
+PaymentRouter.get("/payment/confirm", auth, async (req, res) => {
+    try {
+        const sessionId = String(req.query.session_id ?? "");
+        if (!sessionId) {
+            return res.status(400).json("session_id is required");
+        }
+        const statusCheckUpdate =
+            await paymentService.confirmStripeSession(sessionId);
+        return res.status(200).json(statusCheckUpdate);
+    } catch (err) {
+        console.log("confirm stripe session error: ", err);
+        return res.status(500).json("Server error");
+    }
 });
 
 PaymentRouter.put(

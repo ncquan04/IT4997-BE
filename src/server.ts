@@ -62,6 +62,7 @@ app.use(
 );
 app.use(cookieParser());
 app.use(passport.initialize());
+app.use("/api/payment/webhook", express.raw({ type: "application/json" }));
 app.use(bodyParser.json({ limit: "500mb" }));
 app.use(
     helmet.contentSecurityPolicy({
