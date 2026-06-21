@@ -741,6 +741,20 @@ class OrderService {
                                     preserveNullAndEmptyArrays: true,
                                 },
                             },
+                            {
+                                $lookup: {
+                                    from: "branches",
+                                    localField: "branchId",
+                                    foreignField: "_id",
+                                    as: "branchInfo",
+                                },
+                            },
+                            {
+                                $unwind: {
+                                    path: "$branchInfo",
+                                    preserveNullAndEmptyArrays: true,
+                                },
+                            },
                             // Chỉ lấy các trường cần thiết để hiển thị bảng
                             {
                                 $project: {
@@ -749,9 +763,22 @@ class OrderService {
                                     sumPrice: 1,
                                     createdAt: 1,
                                     toAddress: 1,
+                                    numberPhone: 1,
+                                    userName: 1,
+                                    note: 1,
                                     "payment.method": 1,
                                     "payment.status": 1,
+                                    "payment.totalMoney": 1,
+                                    "payment.discount": 1,
+                                    "payment.couponCode": 1,
+                                    "payment.couponDiscount": 1,
+                                    "payment.memberDiscount": 1,
+                                    "payment.pointsRedeemed": 1,
+                                    "payment.pointsDiscount": 1,
+                                    "payment.pointsEarned": 1,
                                     listProduct: 1,
+                                    imeiAssignments: 1,
+                                    statusHistory: 1,
                                     branchId: 1,
                                     // Thông tin user Flatten ra cho dễ dùng
                                     userId: {
@@ -759,6 +786,12 @@ class OrderService {
                                         email: "$userInfo.email",
                                         fullName: "$userInfo.userName",
                                         phone: "$userInfo.phoneNumber",
+                                    },
+                                    // Thông tin chi nhánh xử lý đơn
+                                    branch: {
+                                        _id: "$branchInfo._id",
+                                        name: "$branchInfo.name",
+                                        address: "$branchInfo.address",
                                     },
                                 },
                             },
