@@ -16,17 +16,15 @@ type FilterOp =
     | "not_exists";
 
 interface StepFilter {
-    field: string; // e.g. "params.productId", "page", "params.price"
+    field: string;
     op: FilterOp;
-    value?: any; // single value for eq/neq/gt/gte/lt/lte, array for in/not_in
+    value?: any;
 }
 
 interface FunnelStepDef {
     eventName: string;
     filters?: StepFilter[];
 }
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 const ALLOWED_OPS = new Set<string>([
     "in",
@@ -52,7 +50,6 @@ const ALLOWED_TOP_FIELDS = new Set<string>([
 
 function resolveField(field: string): string {
     if (ALLOWED_TOP_FIELDS.has(field)) return field;
-    // Anything else is treated as a param key
     if (field.startsWith("params.")) return field;
     return `params.${field}`;
 }
@@ -117,8 +114,6 @@ function buildStepMatch(
     return match;
 }
 
-// ─── Track Events (batch) ────────────────────────────────────────────────────
-
 export const trackEvents = async (req: Request, res: Response) => {
     try {
         const { events } = req.body;
@@ -166,18 +161,6 @@ export const trackEvents = async (req: Request, res: Response) => {
     }
 };
 
-// ─── Funnel Query (POST — supports per-step filters) ────────────────────────
-//
-// Body: {
-//   steps: [
-//     { eventName: "page_view", filters: [] },
-//     { eventName: "add_to_cart", filters: [{ field: "price", op: "gte", value: 1000 }] },
-//     { eventName: "purchase", filters: [{ field: "currency", op: "not_in", value: ["VND"] }] }
-//   ],
-//   from: 1714000000000,  // optional, ms timestamp
-//   to:   1714600000000,  // optional
-// }
-
 export const queryFunnel = async (req: Request, res: Response) => {
     try {
         const { steps, from, to } = req.body;
@@ -199,11 +182,6 @@ export const queryFunnel = async (req: Request, res: Response) => {
             : new Date(Date.now() - 30 * 24 * 3600 * 1000);
         const toDate = to ? new Date(Number(to)) : new Date();
 
-        // Sequential funnel: for each step, find the set of anonymousIds that
-        // completed this step AFTER their previous step timestamp.
-        // We carry forward a Map<anonymousId, lastTimestamp>.
-
-        // Step 0: find all users matching the first step
         const step0Match = buildStepMatch(steps[0], fromDate, toDate);
         const step0Events = await EventModel.aggregate([
             { $match: step0Match },
@@ -223,7 +201,6 @@ export const queryFunnel = async (req: Request, res: Response) => {
 
         const funnelCounts: number[] = [currentUsers.size];
 
-        // Steps 1..N: narrow down
         for (let i = 1; i < steps.length; i++) {
             if (currentUsers.size === 0) {
                 funnelCounts.push(0);
@@ -233,7 +210,6 @@ export const queryFunnel = async (req: Request, res: Response) => {
             const stepMatch = buildStepMatch(steps[i], fromDate, toDate);
             const anonymousIds = Array.from(currentUsers.keys());
 
-            // Query in batches of 5000 to avoid huge $in arrays
             const BATCH_SIZE = 5000;
             const nextUsers = new Map<string, Date>();
 
@@ -259,7 +235,6 @@ export const queryFunnel = async (req: Request, res: Response) => {
                 for (const doc of batchEvents) {
                     const prevTs = currentUsers.get(doc._id);
                     if (!prevTs) continue;
-                    // Find the first event after the previous step's timestamp
                     const validEvent = doc.events.find(
                         (e: any) => e.ts >= prevTs
                     );
@@ -307,20 +282,6 @@ export const queryFunnel = async (req: Request, res: Response) => {
         return res.status(500).json({ message: error.message });
     }
 };
-
-// ─── Branching Funnel Query (tree structure) ─────────────────────────────────
-//
-// Body: {
-//   nodes: [
-//     { id: "1", parentId: null, eventName: "page_view", filters: [] },
-//     { id: "2", parentId: "1",  eventName: "view_product", filters: [] },
-//     { id: "3", parentId: "1",  eventName: "search", filters: [] },  // branch!
-//     { id: "4", parentId: "2",  eventName: "add_to_cart", filters: [] },
-//     { id: "5", parentId: "3",  eventName: "view_product", filters: [] },
-//   ],
-//   from: 1714000000000,
-//   to:   1714600000000,
-// }
 
 interface TreeNodeDef {
     id: string;
@@ -531,8 +492,6 @@ export const queryFunnelTree = async (req: Request, res: Response) => {
     }
 };
 
-// ─── Get distinct event names (for admin dropdown) ───────────────────────────
-
 export const getEventNames = async (req: Request, res: Response) => {
     try {
         const names = await EventModel.distinct("eventName");
@@ -542,9 +501,6 @@ export const getEventNames = async (req: Request, res: Response) => {
         return res.status(500).json({ message: error.message });
     }
 };
-
-// ─── Get distinct param keys for a given event name ──────────────────────────
-// GET /events/param-keys?eventName=add_to_cart
 
 export const getParamKeys = async (req: Request, res: Response) => {
     try {
@@ -580,9 +536,6 @@ export const getParamKeys = async (req: Request, res: Response) => {
         return res.status(500).json({ message: error.message });
     }
 };
-
-// ─── Get distinct values for a given param key + event name ──────────────────
-// GET /events/param-values?eventName=add_to_cart&field=currency
 
 export const getParamValues = async (req: Request, res: Response) => {
     try {
