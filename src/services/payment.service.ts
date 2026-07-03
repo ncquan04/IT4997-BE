@@ -312,6 +312,7 @@ class PaymentService {
                     await PaymentModel.findOneAndUpdate(
                         {
                             orderId: new mongoose.Types.ObjectId(orderId),
+                            userId: new mongoose.Types.ObjectId(userId),
                             status: STATUS_PAYMENT.UNPAID,
                         },
                         { $set: { status: STATUS_PAYMENT.FAILED } }
@@ -321,6 +322,7 @@ class PaymentService {
                 // Đường success_url do /payment/confirm xử lý; ở đây chỉ đọc trạng thái hiện tại.
                 const paymentRes = await PaymentModel.findOne({
                     orderId: new mongoose.Types.ObjectId(orderId),
+                    userId: new mongoose.Types.ObjectId(userId),
                 });
                 return paymentRes?.status === STATUS_PAYMENT.PAID
                     ? STATUS_PAYMENT_CHECKUPDATE.SUCCESS
@@ -336,6 +338,7 @@ class PaymentService {
                     codPayment = await PaymentModel.findOneAndUpdate(
                         {
                             orderId: new mongoose.Types.ObjectId(orderId),
+                            userId: new mongoose.Types.ObjectId(userId),
                             status: STATUS_PAYMENT.UNPAID,
                         },
                         { $set: { status: STATUS_PAYMENT.PAID } },

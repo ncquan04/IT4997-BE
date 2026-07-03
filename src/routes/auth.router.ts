@@ -5,6 +5,7 @@ import { register, login, googleCallback, getMe, logout } from "../services/auth
 import { validate } from "../middlewares/validate";
 import { registerSchema, loginSchema } from "../dto/auth.dto";
 import { auth } from "../middlewares/auth";
+import { rateLimitLoginApi } from "../middlewares/rateLimitApi";
 import { verifyRole } from "../middlewares/verifyRole";
 import { UserRole } from "../shared/models/user-model";
 import UserModel from "../models/user-model.mongo";
@@ -52,8 +53,8 @@ passport.use(
 
 const AuthRouter = express.Router();
 
-AuthRouter.post("/auth/register", validate(registerSchema), register);
-AuthRouter.post("/auth/login", validate(loginSchema), login);
+AuthRouter.post("/auth/register", rateLimitLoginApi, validate(registerSchema), register);
+AuthRouter.post("/auth/login", rateLimitLoginApi, validate(loginSchema), login);
 AuthRouter.get("/auth/me", auth, getMe);
 
 AuthRouter.get(

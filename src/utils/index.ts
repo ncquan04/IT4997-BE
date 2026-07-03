@@ -12,7 +12,7 @@ export const getIPFromRequest = (req: any) => {
     return ip;
 };
 
-const SECRET = "your-very-strong-secret-key";
+const SECRET = process.env.AES_SECRET || "your-very-strong-secret-key";
 
 // Key 32 bytes cho AES-256
 const AES_KEY = crypto.createHash("sha256").update(SECRET).digest();
@@ -57,4 +57,22 @@ export function decryptObject(encoded: string): any {
 
 export const isProd = () => {
     return process.env.PROD === "true";
+};
+
+const allowedOrigins = (process.env.CORS_ORIGINS || process.env.FRONTEND_URL || "")
+    .split(",")
+    .map((o) => o.trim())
+    .filter(Boolean);
+
+export const isOriginAllowed = (origin?: string): boolean => {
+    if (!origin) return true;
+    if (allowedOrigins.includes(origin)) return true;
+    if (
+        !isProd() &&
+        (origin.startsWith("http://localhost") ||
+            origin.startsWith("http://127.0.0.1"))
+    ) {
+        return true;
+    }
+    return false;
 };

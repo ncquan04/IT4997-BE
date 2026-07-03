@@ -8,13 +8,20 @@ async function main() {
     try {
         await connectDatabase();
 
-        const hashedPassword = await bcrypt.hash("admin123", 10);
+        const adminPassword = process.env.SEED_ADMIN_PASSWORD;
+        const adminEmail = process.env.SEED_ADMIN_EMAIL;
+        if (!adminPassword || !adminEmail) {
+            throw new Error(
+                "SEED_ADMIN_EMAIL and SEED_ADMIN_PASSWORD env vars are required"
+            );
+        }
+        const hashedPassword = await bcrypt.hash(adminPassword, 10);
 
         await UserModel.create({
             userName: "Admin",
             password: hashedPassword,
             role: UserRole.ADMIN,
-            email: "admin@gmail.com",
+            email: adminEmail,
             phoneNumber: "0123456789",
             dateOfBirth: new Date("1990-01-01"),
         });

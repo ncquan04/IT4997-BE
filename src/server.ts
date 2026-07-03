@@ -19,6 +19,7 @@ import WishListRouter from "./routes/wishList.router";
 import { ElasticSearch } from "../elasticsearch/elastic.client";
 import { createSocketServer } from "./utils/socket.config";
 import { registerSocketListeners } from "./socket/socket.bootstrap";
+import { isOriginAllowed } from "./utils";
 import UploadRouter from "./routes/upload.router";
 import ReportRouter from "./routes/report.router";
 import NotificationRouter from "./routes/notification.router";
@@ -46,14 +47,8 @@ registerSocketListeners(io);
 app.use(
     cors({
         origin: (origin, callback) => {
-            if (!origin) return callback(null, true);
-            if (
-                origin.startsWith("http://localhost") ||
-                origin.startsWith("http://127.0.0.1")
-            ) {
-                return callback(null, true);
-            }
-            return callback(null, true);
+            if (isOriginAllowed(origin)) return callback(null, true);
+            return callback(new Error("Not allowed by CORS"), false);
         },
         credentials: true,
         methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
@@ -72,7 +67,7 @@ app.use(
         },
     })
 );
-app.set("trust proxy", true);
+app.set("trust proxy", 1);
 
 try {
     app.use("/api", AuthRouter);

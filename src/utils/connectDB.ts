@@ -30,7 +30,7 @@ const connectDatabase = async (success?: Function, failure?: Function) => {
     }
 
     try {
-        console.log("Connecting to MongoDB:", DB_URL, mongoSetup);
+        console.log("Connecting to MongoDB:", DB_URL, "db:", DATABASE);
         await mongoose.connect(DB_URL, mongoSetup);
         console.log("MongoDB connected:", new Date());
         success?.(mongoose);

@@ -6,19 +6,12 @@ const TOKEN_SECRET = process.env.ACCESS_TOKEN_SECRET || "your-default-secret";
 
 export const jwtDecodeToken = function (token: string): string | object | null {
     try {
-        let decoded = jwt.verify(token, TOKEN_SECRET);
+        const decoded = jwt.verify(token, TOKEN_SECRET);
         if (decoded && typeof decoded === "object") {
             return decoded;
         }
-    } catch (err) {
-        try {
-            let decoded = jwt.verify(token, "jwtSecretV1");
-            if (decoded && typeof decoded === "object") {
-                return decoded;
-            }
-        } catch (error) {
-            return null;
-        }
+    } catch {
+        return null;
     }
     return null;
 };
