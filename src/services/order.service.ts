@@ -10,6 +10,7 @@ import { notificationService } from "./notification.service";
 import BranchModel from "../models/branch-model.mongo";
 import StockTransferModel from "../models/stock-transfer-model.mongo";
 import BranchInventoryModel from "../models/branch-inventory-model.mongo";
+import { createStockExportFromOrder } from "./stock-export.service";
 
 const STATUS_TRANSFER = Contacts.Status.Transfer;
 
@@ -439,6 +440,18 @@ class OrderService {
                 String(newOrders[0]._id),
                 mainBranchId,
                 pendingTransfers,
+                session
+            );
+
+            await createStockExportFromOrder(
+                String(newOrders[0]._id),
+                userId,
+                imeiAssignments.map((a) => ({
+                    productId: String(a.productId),
+                    variantId: String(a.variantId),
+                    branchId: String(a.branchId),
+                    imeiList: a.imeiList,
+                })),
                 session
             );
 

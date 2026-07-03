@@ -165,6 +165,18 @@ OrderRouter.post(
                 session
             );
 
+            await createStockExportFromOrder(
+                String(newOrder._id),
+                userId,
+                imeiAssignments.map((a) => ({
+                    productId: String(a.productId),
+                    variantId: String(a.variantId),
+                    branchId: String(a.branchId),
+                    imeiList: a.imeiList,
+                })),
+                session
+            );
+
             await session.commitTransaction();
             return res.status(200).json(newOrder);
         } catch (err: any) {
@@ -323,33 +335,6 @@ OrderRouter.post(
                 });
             }
 
-            const storedAssignments = (order as any).imeiAssignments as
-                | IOrderImeiAssignment[]
-                | undefined;
-            if (!storedAssignments || storedAssignments.length === 0) {
-                await session.abortTransaction();
-                return res.status(400).json({
-                    message: "No IMEI assignments found for this order.",
-                });
-            }
-
-            const imeiAssignments: ImeiAssignment[] = storedAssignments.map(
-                (a) => ({
-                    productId: String(a.productId),
-                    variantId: String(a.variantId),
-                    branchId: String(a.branchId),
-                    imeiList: a.imeiList,
-                })
-            );
-
-            // Create StockExport per branch + deduct inventory inside the transaction
-            await createStockExportFromOrder(
-                orderId,
-                userId,
-                imeiAssignments,
-                session
-            );
-
             // Update order status to SHIPPING
             order.statusOrder = STATUS_ORDER.SHIPPING;
             await order.save({ session });
@@ -427,6 +412,43 @@ OrderRouter.put(
                     await reverseInventoryForOrder(orderId, session);
 
                     order.statusOrder = STATUS_ORDER.RETURNED;
+                    await order.save({ session });
+
+                    await session.commitTransaction();
+                } catch (err: any) {
+                    await session.abortTransaction();
+                    throw err;
+                } finally {
+                    session.endSession();
+                }
+            } else if (statusOrder === STATUS_ORDER.CANCELLED) {
+                const session = await mongoose.startSession();
+                session.startTransaction();
+                try {
+                    const order =
+                        await OrderModel.findById(orderId).session(session);
+
+                    if (!order) {
+                        await session.abortTransaction();
+                        return res
+                            .status(404)
+                            .json({ message: "Order not found" });
+                    }
+
+                    const cancellableFrom: number[] = [
+                        STATUS_ORDER.ORDERED,
+                        STATUS_ORDER.PROCESSING,
+                    ];
+                    if (!cancellableFrom.includes(order.statusOrder)) {
+                        await session.abortTransaction();
+                        return res.status(400).json({
+                            message: `Cannot cancel an order with status ${order.statusOrder}. Only ORDERED or PROCESSING orders can be cancelled.`,
+                        });
+                    }
+
+                    await reverseInventoryForOrder(orderId, session);
+
+                    order.statusOrder = STATUS_ORDER.CANCELLED;
                     await order.save({ session });
 
                     await session.commitTransaction();
