@@ -1,4 +1,5 @@
 import * as yup from "yup";
+import { Contacts } from "../shared/contacts";
 
 const objectIdRegex = /^[0-9a-fA-F]{24}$/;
 
@@ -64,8 +65,18 @@ export const createOrderSchema = yup.object({
 });
 
 export const changeOrderSchema = yup.object({
-    orderId: yup.string().required("orderId is required"),
-    statusOrder: yup.number().required("statusOrder is required"),
+    orderId: yup
+        .string()
+        .trim()
+        .matches(objectIdRegex, "Invalid orderId format")
+        .required("orderId is required"),
+    statusOrder: yup
+        .number()
+        .required("statusOrder is required")
+        .oneOf(
+            Object.values(Contacts.Status.Order),
+            "statusOrder không hợp lệ"
+        ),
 });
 
 const imeiAssignmentSchema = yup.object({

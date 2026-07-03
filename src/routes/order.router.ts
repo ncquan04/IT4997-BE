@@ -377,78 +377,96 @@ OrderRouter.put(
     async (req, res) => {
         try {
             const userId = (req as any).user.id;
+            const userRole = (req as any).user.role;
             const { statusOrder, orderId } = req.body;
 
-            // When transitioning to RETURNED, restore inventory in a transaction
-            if (statusOrder === STATUS_ORDER.RETURNED) {
+            const STAFF_ROLES: string[] = [
+                UserRole.ADMIN,
+                UserRole.MANAGER,
+                UserRole.WAREHOUSE,
+                UserRole.SALES,
+            ];
+            const isStaff = STAFF_ROLES.includes(userRole);
+
+            const TRANSITIONS: Record<
+                number,
+                { from: number[]; staffOnly: boolean }
+            > = {
+                [STATUS_ORDER.PROCESSING]: {
+                    from: [STATUS_ORDER.ORDERED],
+                    staffOnly: true,
+                },
+                [STATUS_ORDER.DELIVERED]: {
+                    from: [STATUS_ORDER.SHIPPING],
+                    staffOnly: true,
+                },
+                [STATUS_ORDER.CANCELLED]: {
+                    from: [STATUS_ORDER.ORDERED, STATUS_ORDER.PROCESSING],
+                    staffOnly: false, // khách được tự hủy đơn của chính mình
+                },
+                [STATUS_ORDER.RETURNED]: {
+                    from: [STATUS_ORDER.SHIPPING, STATUS_ORDER.DELIVERED],
+                    staffOnly: true,
+                },
+            };
+
+            const rule = TRANSITIONS[statusOrder];
+            if (!rule) {
+                return res.status(400).json({
+                    message: `Không thể đổi sang trạng thái ${statusOrder} qua chức năng này.`,
+                });
+            }
+            if (rule.staffOnly && !isStaff) {
+                return res.status(403).json({
+                    message: "Bạn không có quyền thực hiện thao tác này.",
+                });
+            }
+
+            if (!mongoose.isValidObjectId(orderId)) {
+                return res.status(400).json({ message: "Invalid order id" });
+            }
+
+            const targetOrder = await OrderModel.findById(orderId);
+            if (!targetOrder) {
+                return res.status(404).json({ message: "Order not found" });
+            }
+            if (!isStaff && String(targetOrder.userId) !== String(userId)) {
+                return res.status(403).json({
+                    message: "Bạn không có quyền thao tác trên đơn hàng này.",
+                });
+            }
+            if (!rule.from.includes(targetOrder.statusOrder)) {
+                return res.status(400).json({
+                    message: `Không thể chuyển đơn từ trạng thái ${targetOrder.statusOrder} sang ${statusOrder}.`,
+                });
+            }
+
+            if (
+                statusOrder === STATUS_ORDER.RETURNED ||
+                statusOrder === STATUS_ORDER.CANCELLED
+            ) {
                 const session = await mongoose.startSession();
                 session.startTransaction();
                 try {
-                    const OrderModel = (
-                        await import("../models/order-model.mongo")
-                    ).default;
                     const order =
                         await OrderModel.findById(orderId).session(session);
-
                     if (!order) {
                         await session.abortTransaction();
                         return res
                             .status(404)
                             .json({ message: "Order not found" });
                     }
-
-                    const allowedFromStatuses: number[] = [
-                        STATUS_ORDER.SHIPPING,
-                        STATUS_ORDER.DELIVERED,
-                    ];
-                    if (!allowedFromStatuses.includes(order.statusOrder)) {
+                    // Kiểm tra lại trạng thái nguồn trong transaction để chống race.
+                    if (!rule.from.includes(order.statusOrder)) {
                         await session.abortTransaction();
                         return res.status(400).json({
-                            message: `Cannot return an order with status ${order.statusOrder}. Order must be SHIPPING or DELIVERED.`,
-                        });
-                    }
-
-                    // Restore inventory (reverses the StockExport created at shipping)
-                    await reverseInventoryForOrder(orderId, session);
-
-                    order.statusOrder = STATUS_ORDER.RETURNED;
-                    await order.save({ session });
-
-                    await session.commitTransaction();
-                } catch (err: any) {
-                    await session.abortTransaction();
-                    throw err;
-                } finally {
-                    session.endSession();
-                }
-            } else if (statusOrder === STATUS_ORDER.CANCELLED) {
-                const session = await mongoose.startSession();
-                session.startTransaction();
-                try {
-                    const order =
-                        await OrderModel.findById(orderId).session(session);
-
-                    if (!order) {
-                        await session.abortTransaction();
-                        return res
-                            .status(404)
-                            .json({ message: "Order not found" });
-                    }
-
-                    const cancellableFrom: number[] = [
-                        STATUS_ORDER.ORDERED,
-                        STATUS_ORDER.PROCESSING,
-                    ];
-                    if (!cancellableFrom.includes(order.statusOrder)) {
-                        await session.abortTransaction();
-                        return res.status(400).json({
-                            message: `Cannot cancel an order with status ${order.statusOrder}. Only ORDERED or PROCESSING orders can be cancelled.`,
+                            message: `Không thể chuyển đơn từ trạng thái ${order.statusOrder} sang ${statusOrder}.`,
                         });
                     }
 
                     await reverseInventoryForOrder(orderId, session);
 
-                    order.statusOrder = STATUS_ORDER.CANCELLED;
+                    order.statusOrder = statusOrder;
                     await order.save({ session });
 
                     await session.commitTransaction();
@@ -459,6 +477,7 @@ OrderRouter.put(
                     session.endSession();
                 }
             } else {
+                // PROCESSING / DELIVERED — chỉ đổi trạng thái, không đụng tồn kho.
                 await orderServices.updateOrder({ statusOrder }, orderId);
             }
 
