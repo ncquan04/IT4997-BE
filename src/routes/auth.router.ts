@@ -67,7 +67,6 @@ AuthRouter.get(
     googleCallback
 );
 
-// AuthRouter.post("/auth/refresh-token", refreshToken);
 AuthRouter.post("/auth/logout", logout);
 
 AuthRouter.get(
