@@ -26,8 +26,6 @@ const EXCLUDED_PAYMENT_STATUSES = [
 // Order statuses to exclude
 const EXCLUDED_ORDER_STATUSES = [STATUS_ORDER.CANCELLED, STATUS_ORDER.RETURNED];
 
-// ─── helpers ────────────────────────────────────────────────────────────────
-
 function parseTimeRange(req: Request): { from?: Date; to?: Date } {
     const from = req.query.from ? new Date(Number(req.query.from)) : undefined;
     const to = req.query.to ? new Date(Number(req.query.to)) : undefined;
@@ -47,8 +45,6 @@ function parseBranchId(req: Request): mongoose.Types.ObjectId | undefined {
         (req.query.branchId as string | undefined);
     return id ? new mongoose.Types.ObjectId(id) : undefined;
 }
-
-// ─── 1. Top sản phẩm kinh doanh tốt ────────────────────────────────────────
 
 export const getTopProducts = async (req: Request, res: Response) => {
     try {
@@ -149,8 +145,6 @@ export const getTopProducts = async (req: Request, res: Response) => {
     }
 };
 
-// ─── 2. Báo cáo giá trị kho hàng ────────────────────────────────────────────
-
 export const getInventoryValue = async (req: Request, res: Response) => {
     try {
         const branchId = parseBranchId(req);
@@ -244,8 +238,6 @@ export const getInventoryValue = async (req: Request, res: Response) => {
         return res.status(500).json({ message: "Internal server error" });
     }
 };
-
-// ─── 3. Doanh thu & lợi nhuận theo thời gian ────────────────────────────────
 
 export const getRevenueOverTime = async (req: Request, res: Response) => {
     try {
@@ -349,8 +341,6 @@ export const getRevenueOverTime = async (req: Request, res: Response) => {
     }
 };
 
-// ─── 4. Doanh thu theo chi nhánh ─────────────────────────────────────────────
-
 export const getRevenueByBranch = async (req: Request, res: Response) => {
     try {
         const { from, to } = parseTimeRange(req);
@@ -453,8 +443,6 @@ export const getRevenueByBranch = async (req: Request, res: Response) => {
         return res.status(500).json({ message: "Internal server error" });
     }
 };
-
-// ─── 5. Phân tích tác động khuyến mãi ────────────────────────────────────────
 
 export const getCouponImpact = async (req: Request, res: Response) => {
     try {
@@ -598,8 +586,6 @@ export const getCouponImpact = async (req: Request, res: Response) => {
     }
 };
 
-// ─── 6. Chi phí nhập hàng ────────────────────────────────────────────────────
-
 export const getImportCost = async (req: Request, res: Response) => {
     try {
         const { from, to } = parseTimeRange(req);
@@ -670,8 +656,6 @@ export const getImportCost = async (req: Request, res: Response) => {
         return res.status(500).json({ message: "Internal server error" });
     }
 };
-
-// ─── 7. Báo cáo hoàn tiền & tổn thất ────────────────────────────────────────
 
 export const getRefundSummary = async (req: Request, res: Response) => {
     try {
@@ -775,8 +759,6 @@ export const getRefundSummary = async (req: Request, res: Response) => {
     }
 };
 
-// ─── 8. Báo cáo chương trình Loyalty ────────────────────────────────────────
-
 export const getLoyaltySummary = async (req: Request, res: Response) => {
     try {
         const { from, to } = parseTimeRange(req);
@@ -839,8 +821,6 @@ export const getLoyaltySummary = async (req: Request, res: Response) => {
         return res.status(500).json({ message: "Internal server error" });
     }
 };
-
-// ─── 9. Payroll Cost ─────────────────────────────────────────────────────────
 
 export const getPayrollCost = async (req: Request, res: Response) => {
     try {
@@ -986,8 +966,6 @@ export const getPayrollCost = async (req: Request, res: Response) => {
         return res.status(500).json({ message: "Internal server error" });
     }
 };
-
-// ─── Rent cost period helper ──────────────────────────────────────────────────
 
 function computePeriodRent(
     history: { amount: number; effectiveFrom: Date | string }[],

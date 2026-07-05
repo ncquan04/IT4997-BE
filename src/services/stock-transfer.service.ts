@@ -35,9 +35,6 @@ const normalizeImeis = (raw: string[]): string[] => {
     return out;
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Validate that IMEI exists in branch inventory
-// ─────────────────────────────────────────────────────────────────────────────
 const validateImeiAvailability = async (
     branchId: string,
     assignments: ImeiAssignment[],
@@ -74,9 +71,6 @@ const validateImeiAvailability = async (
     }
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Deduct inventory from a branch
-// ─────────────────────────────────────────────────────────────────────────────
 const deductInventory = async (
     branchId: string,
     assignments: ImeiAssignment[],
@@ -107,9 +101,6 @@ const deductInventory = async (
     }
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Add inventory to a branch
-// ─────────────────────────────────────────────────────────────────────────────
 const addInventory = async (
     branchId: string,
     assignments: ImeiAssignment[],
@@ -131,9 +122,6 @@ const addInventory = async (
     }
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Manual transfer creation via API
-// ─────────────────────────────────────────────────────────────────────────────
 export const createStockTransfer = async (req: Request, res: Response) => {
     try {
         const request = req as AuthenticatedRequest;
@@ -267,9 +255,6 @@ export const createStockTransfer = async (req: Request, res: Response) => {
     }
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Get List
-// ─────────────────────────────────────────────────────────────────────────────
 export const getStockTransferList = async (req: Request, res: Response) => {
     try {
         const { status, viewOptions } = req.query;

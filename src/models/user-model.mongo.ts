@@ -29,7 +29,6 @@ const userSchema = new Schema<UserModelDocument>(
         dateOfBirth: { type: Number },
         verifyCode: { type: String },
         branchId: { type: ObjectId as any, ref: branchTableName },
-        // ── Loyalty ────────────────────────────────────────
         memberTier: {
             type: String,
             enum: Object.values(MemberTier),
@@ -39,7 +38,6 @@ const userSchema = new Schema<UserModelDocument>(
         totalSpent: { type: Number, default: 0, min: 0 },
         spentInWindow: { type: Number, default: 0, min: 0 },
         windowStartAt: { type: Number, default: () => Date.now() },
-        // ── HR ────────────────────────────────────────────────
         baseSalary: { type: Number, default: 0, min: 0 },
         startDate: { type: Number },
         isActive: { type: Boolean, default: true },

@@ -1,33 +1,10 @@
-/**
- * Seed highly realistic event data for analytics & funnel demo.
- *
- * Key improvements over the previous version:
- *   • Users visit across MULTIPLE days (returning visitors with same anonymousId)
- *   • Each visit is a separate session with realistic time gaps between actions
- *   • Browsing patterns match the actual app flow (page_view → category → search → product → cart → checkout)
- *   • All event names/params match exactly what the frontend fires
- *   • Realistic distributions: most users browse, few buy; some users buy repeatedly
- *   • Includes: login/signup flows, failed logins, wishlist management, variant selection,
- *     coupon usage, quantity updates, filter changes, load_more pagination
- *
- * Generates ~150k–200k events across 15,000 users over 90 days.
- *
- * Usage:
- *   npx ts-node -r dotenv/config src/seed/seed-events.ts
- */
-
 import mongoose from "mongoose";
 import connectDatabase from "../utils/connectDB";
 import EventModel from "../models/event-model.mongo";
 import crypto from "crypto";
 
-// ─── Config ──────────────────────────────────────────────────────────────────
-
 const TOTAL_USERS = 15_000;
-const DATE_RANGE_DAYS = 90;
 const BATCH_INSERT = 5_000;
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 const uuid = () => crypto.randomUUID();
 const pick = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
@@ -48,11 +25,13 @@ const weightedPick = <T>(items: T[], weights: number[]): T => {
     return items[items.length - 1];
 };
 
-const now = Date.now();
 const msPerDay = 86_400_000;
 const msPerHour = 3_600_000;
 
-// ─── Realistic catalog data ──────────────────────────────────────────────────
+// Fixed seeding window: May 1 → Aug 31, 2026 (Vietnam time, +07:00)
+const RANGE_START = new Date("2026-05-01T00:00:00+07:00").getTime();
+const RANGE_END = new Date("2026-09-01T00:00:00+07:00").getTime(); // exclusive
+const RANGE_DAYS = Math.round((RANGE_END - RANGE_START) / msPerDay); // 123
 
 const CATEGORIES = [
     { id: "cat_laptop", name: "Laptop" },
@@ -411,8 +390,6 @@ const USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 Edg/124.0.2478.51",
 ];
 
-// ─── User profile (persisted across sessions) ────────────────────────────────
-
 interface UserProfile {
     anonymousId: string;
     userId: string | null;
@@ -467,8 +444,6 @@ function createUserProfile(): UserProfile {
     };
 }
 
-// ─── Event builder ───────────────────────────────────────────────────────────
-
 interface RawEvent {
     anonymousId: string;
     sessionId: string;
@@ -489,7 +464,7 @@ class SessionBuilder {
     private profile: UserProfile;
     private referrer: string;
 
-    constructor(profile: UserProfile, dayOffset: number, hourOfDay?: number) {
+    constructor(profile: UserProfile, dayIndex: number, hourOfDay?: number) {
         this.profile = profile;
         this.sessionId = uuid();
         const hour =
@@ -502,8 +477,8 @@ class SessionBuilder {
                 [2, 4, 6, 8, 8, 10, 8, 7, 6, 5, 5, 8, 12, 15, 14, 10, 5] // peak evening
             );
         this.ts =
-            now -
-            dayOffset * msPerDay +
+            RANGE_START +
+            dayIndex * msPerDay +
             hour * msPerHour +
             rand(0, msPerHour - 1);
         this.referrer = REFERRERS[profile.source] || "";
@@ -542,8 +517,6 @@ class SessionBuilder {
     getEvents(): RawEvent[] {
         return this.events;
     }
-
-    // ── Atomic actions ──
 
     pageView(page: string) {
         this.emit("page_view", { page, title: this.pageTitle(page) }, page);
@@ -921,8 +894,6 @@ class SessionBuilder {
     }
 }
 
-// ─── Journey generators ──────────────────────────────────────────────────────
-
 function generateBrowseOnlySession(
     profile: UserProfile,
     dayOffset: number
@@ -1178,8 +1149,6 @@ function generateCheckoutAbandonSession(
     return session.getEvents();
 }
 
-// ─── Multi-day user journey orchestrator ─────────────────────────────────────
-
 function generateUserEvents(profile: UserProfile): RawEvent[] {
     const allEvents: RawEvent[] = [];
 
@@ -1197,8 +1166,8 @@ function generateUserEvents(profile: UserProfile): RawEvent[] {
 
     // Spread sessions across different days
     const sessionDays = Array.from({ length: numSessions }, () =>
-        rand(1, DATE_RANGE_DAYS)
-    ).sort((a, b) => b - a); // chronological (larger dayOffset = further in the past)
+        rand(0, RANGE_DAYS - 1)
+    ).sort((a, b) => a - b); // chronological (ascending day index = earlier first)
 
     let hasPurchased = false;
 
@@ -1246,8 +1215,6 @@ function generateUserEvents(profile: UserProfile): RawEvent[] {
 
     return allEvents;
 }
-
-// ─── Main ────────────────────────────────────────────────────────────────────
 
 async function main() {
     await connectDatabase();

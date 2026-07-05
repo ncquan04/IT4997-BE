@@ -43,13 +43,6 @@ class DiscountProgramService {
         return docs;
     }
 
-    /**
-     * Pure in-memory computation — no DB call.
-     * Priority: product > category > all.
-     * Among same-scope matches, picks the program that gives the most discount.
-     *
-     * @returns effectivePrice after discount, or null if no program applies
-     */
     computeEffectivePrice(
         productId: string,
         categoryId: string,

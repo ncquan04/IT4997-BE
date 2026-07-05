@@ -17,7 +17,6 @@ const STAFF_ROLES: UserRole[] = [
     UserRole.TECHNICIAN,
 ];
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 const todayString = () => new Date().toISOString().split("T")[0]; // YYYY-MM-DD
 
 const calcWorkingHours = (checkIn?: number, checkOut?: number): number => {
@@ -25,7 +24,6 @@ const calcWorkingHours = (checkIn?: number, checkOut?: number): number => {
     return Math.max(0, (checkOut - checkIn) / (1000 * 60 * 60));
 };
 
-// ─── Check-in ────────────────────────────────────────────────────────────────
 export const checkIn = async (req: AuthenticatedRequest, res: Response) => {
     const employeeId = req.user!.id;
     const branchId = req.user!.branchId;
@@ -57,7 +55,6 @@ export const checkIn = async (req: AuthenticatedRequest, res: Response) => {
     return res.status(201).json(record);
 };
 
-// ─── Check-out ───────────────────────────────────────────────────────────────
 export const checkOut = async (req: AuthenticatedRequest, res: Response) => {
     const employeeId = req.user!.id;
     const date = todayString();
@@ -78,7 +75,6 @@ export const checkOut = async (req: AuthenticatedRequest, res: Response) => {
     return res.json(record);
 };
 
-// ─── Lấy bảng công theo tháng ────────────────────────────────────────────────
 export const getAttendanceList = async (
     req: AuthenticatedRequest,
     res: Response
@@ -120,7 +116,6 @@ export const getAttendanceList = async (
     return res.json(records);
 };
 
-// ─── Chỉnh sửa thủ công (admin/manager) ────────────────────────────────────
 export const upsertAttendance = async (
     req: AuthenticatedRequest,
     res: Response
@@ -165,7 +160,6 @@ export const upsertAttendance = async (
     return res.json(record);
 };
 
-// ─── Thống kê ngày công của một nhân viên trong tháng ───────────────────────
 export const getAttendanceSummary = async (
     req: AuthenticatedRequest,
     res: Response

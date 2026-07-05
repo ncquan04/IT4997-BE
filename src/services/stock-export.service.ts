@@ -29,12 +29,6 @@ export type ImeiAssignment = {
     branchId: string;
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Internal helper — validate that every IMEI in the assignment exists in the
-// BranchInventory record for that (branchId, productId, variantId).
-// Throws with a descriptive message on failure.
-// Must be called inside a session so the inventory read is consistent.
-// ─────────────────────────────────────────────────────────────────────────────
 const validateImeiAvailability = async (
     branchId: string,
     assignments: Omit<ImeiAssignment, "branchId">[],
@@ -79,10 +73,6 @@ const validateImeiAvailability = async (
     }
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Internal helper — deduct inventory for a completed export.
-// Must be called inside an active session.
-// ─────────────────────────────────────────────────────────────────────────────
 const deductInventory = async (
     branchId: string,
     assignments: Omit<ImeiAssignment, "branchId">[],
@@ -104,12 +94,6 @@ const deductInventory = async (
     }
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// CASE 1 — Called internally from the order shipping endpoint.
-// imeiAssignments each carry a branchId so items may span multiple branches.
-// Creates one StockExport per branch (all linked to the same orderId) and
-// deducts BranchInventory for each. Runs inside the caller-provided session.
-// ─────────────────────────────────────────────────────────────────────────────
 export const createStockExportFromOrder = async (
     orderId: string,
     createdBy: string,
@@ -161,9 +145,6 @@ export const createStockExportFromOrder = async (
     return stockExports;
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// CASE 2 — Manual export creation via API (creates a PENDING record).
-// ─────────────────────────────────────────────────────────────────────────────
 export const createStockExport = async (req: Request, res: Response) => {
     try {
         const request = req as AuthenticatedRequest;
@@ -288,9 +269,6 @@ export const createStockExport = async (req: Request, res: Response) => {
     }
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// List with pagination and filters
-// ─────────────────────────────────────────────────────────────────────────────
 export const getStockExportList = async (req: Request, res: Response) => {
     try {
         const { status } = req.query;
@@ -351,9 +329,6 @@ export const getStockExportList = async (req: Request, res: Response) => {
     }
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Detail with full populate
-// ─────────────────────────────────────────────────────────────────────────────
 export const getStockExportById = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
@@ -397,12 +372,6 @@ export const getStockExportById = async (req: Request, res: Response) => {
     }
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// RETURN — Called internally when an order transitions to RETURNED.
-// Finds the COMPLETED StockExport linked to the order, restores BranchInventory,
-// and marks the export as CANCELLED (indicating the goods came back).
-// Runs entirely inside the caller-provided MongoDB session/transaction.
-// ─────────────────────────────────────────────────────────────────────────────
 export const reverseInventoryForOrder = async (
     orderId: string,
     session: mongoose.ClientSession
@@ -440,11 +409,6 @@ export const reverseInventoryForOrder = async (
     return stockExports;
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Status update for manually-created exports (Case 2).
-// PENDING → COMPLETED: validates IMEIs then deducts inventory in a transaction.
-// PENDING → CANCELLED: no inventory change.
-// ─────────────────────────────────────────────────────────────────────────────
 export const updateStockExportStatus = async (req: Request, res: Response) => {
     const session = await mongoose.startSession();
     session.startTransaction();

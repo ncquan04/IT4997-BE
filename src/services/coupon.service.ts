@@ -36,11 +36,6 @@ class CouponService {
         return !!result;
     }
 
-    /**
-     * Validate a coupon code against an order total.
-     * Does NOT increment usedCount — that happens at payment time.
-     * Returns the discount amount to apply.
-     */
     async validateCoupon(
         code: string,
         orderTotal: number,
@@ -103,9 +98,6 @@ class CouponService {
         return { discountAmount, couponId: String(coupon._id) };
     }
 
-    /**
-     * Atomically increment usedCount. Called at payment creation time.
-     */
     async incrementUsedCount(code: string): Promise<void> {
         await CouponModel.findOneAndUpdate(
             { code: code.toUpperCase() },

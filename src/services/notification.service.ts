@@ -35,9 +35,6 @@ class NotificationService {
         }
     }
 
-    /**
-     * Hàm đánh dấu đã đọc (Logic mảng readBy)
-     */
     async markAsRead(notificationId: string, adminId: string) {
         return await NotificationModel.findByIdAndUpdate(
             notificationId,

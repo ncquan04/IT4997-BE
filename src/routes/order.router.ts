@@ -29,20 +29,6 @@ const PAYMENT_STATUS = Contacts.Status.Payment;
 
 const OrderRouter = express.Router();
 
-/**
- * POST /api/orders
- * Tạo đơn hàng từ giỏ hàng hiện tại
- */
-
-/**
- * POST /api/orders
- * Tạo đơn hàng mới từ giỏ hàng hiện tại của người dùng
- *
- * Yêu cầu:
- *  - Người dùng đã đăng nhập (auth middleware)
- *  - Role: USER
- *  - Body phải có toAddress (địa chỉ giao hàng)
- */
 OrderRouter.post(
     "/orders",
     auth,
@@ -131,9 +117,6 @@ OrderRouter.post(
             } = req.body;
             const userId = (req as any).user.id;
 
-            // Consolidate the order into a single fulfilment branch, moving any
-            // shortfall in from other branches via internal transfers (same model
-            // as the cart flow).
             const { mainBranchId, imeiAssignments, pendingTransfers } =
                 await planBranchConsolidation(
                     listProduct as IProductItem[],
@@ -299,12 +282,6 @@ OrderRouter.get(
     }
 );
 
-/**
- * POST /api/orders/:id/ship
- * Admin chuyển order sang SHIPPING.
- * IMEI assignments đã được lưu trong Order lúc checkout — không cần cung cấp lại.
- * Tạo StockExport COMPLETED (1 record/branch) + deduct BranchInventory trong cùng 1 transaction.
- */
 OrderRouter.post(
     "/orders/:id/ship",
     auth,

@@ -13,7 +13,6 @@ import {
 
 const LoyaltyRouter = express.Router();
 
-// ── User routes ────────────────────────────────────────────────────────────────
 /** Xem thông tin hạng thành viên + điểm của bản thân */
 LoyaltyRouter.get("/loyalty/me", auth, getMyMemberInfo);
 
@@ -23,11 +22,9 @@ LoyaltyRouter.get("/loyalty/me/history", auth, getMyPointHistory);
 /** Pre-check đổi điểm trước khi checkout */
 LoyaltyRouter.post("/loyalty/me/redeem-preview", auth, postRedeemPreview);
 
-// ── Public routes ──────────────────────────────────────────────────────────────
 /** Xem cấu hình các hạng thành viên */
 LoyaltyRouter.get("/loyalty/tiers", getTierList);
 
-// ── Admin routes ────────────────────────────────────────────────────────────────
 /** Cập nhật cấu hình một hạng */
 LoyaltyRouter.put(
     "/loyalty/tiers/:tier",

@@ -76,10 +76,6 @@ const getProductEffectivePrice = (product: IProduct): number | null => {
     }, null);
 };
 
-/**
- * Enrich each variant of a product list with `effectiveDiscountPrice`
- * based on currently active discount programs (single DB query for all programs).
- */
 const enrichProductsWithDiscounts = (
     products: IProduct[],
     programs: IDiscountProgram[]

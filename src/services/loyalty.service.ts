@@ -7,7 +7,6 @@ import { MemberTier } from "../shared/models/member-tier-config-model";
 import { PointTransactionType } from "../shared/models/point-transaction-model";
 import { parsePositiveInt } from "../utils";
 
-// ─── Hằng số ─────────────────────────────────────────────────────────────────
 /** 100 VND → 1 điểm khi tích */
 const EARN_RATE = 100;
 /** 1 điểm = 1 VND khi đổi */
@@ -23,21 +22,11 @@ type AuthenticatedRequest = Request & {
 
 const toObjectId = (id: string) => new mongoose.Types.ObjectId(id);
 
-// ─── Helpers nội bộ ──────────────────────────────────────────────────────────
-
-/**
- * Tải cấu hình các hạng (sắp xếp minSpent giảm dần).
- * Dùng lean để cache-friendly.
- */
 const loadTierConfigs = async () =>
     MemberTierConfigModel.find({ isActive: true })
         .sort({ minSpent: -1 })
         .lean();
 
-/**
- * Xác định hạng từ chi tiêu trong kỳ.
- * Trả về hạng cao nhất mà spentInWindow >= minSpent.
- */
 const resolveTier = (
     spentInWindow: number,
     configs: Awaited<ReturnType<typeof loadTierConfigs>>
@@ -48,10 +37,6 @@ const resolveTier = (
     return MemberTier.S_NEW;
 };
 
-/**
- * Thu hồi (expire) các batch điểm đã hết hạn của một user.
- * Trả về tổng số điểm đã bị thu hồi.
- */
 const expireStaleForUser = async (
     userId: string,
     session?: mongoose.ClientSession
@@ -97,13 +82,6 @@ const expireStaleForUser = async (
     return totalExpired;
 };
 
-// ─── Tích điểm sau đơn hàng ──────────────────────────────────────────────────
-/**
- * Gọi sau khi Payment chuyển sang PAID.
- * @param paidAmount - Giá trị đơn sau khi trừ coupon + memberDiscount + pointsDiscount (VND)
- * @param orderId    - ObjectId chuỗi của đơn hàng
- * @returns Số điểm đã tích (để caller lưu vào payment.pointsEarned, tránh tính lại).
- */
 export const awardPoints = async (
     userId: string,
     paidAmount: number,
@@ -116,7 +94,6 @@ export const awardPoints = async (
     const configs = await loadTierConfigs();
     const now = Date.now();
 
-    // ── Kiểm tra rolling window ──────────────────────────────────────────────
     let newSpentInWindow: number;
     let newWindowStartAt: number;
 
@@ -168,10 +145,6 @@ export const awardPoints = async (
     return earnedPoints;
 };
 
-/**
- * Tính số tiền chiết khấu thành viên dựa trên hạng hiện tại.
- * Dùng trong Payment khi tính tổng tiền.
- */
 export const calculateMemberDiscount = async (
     userId: string,
     baseAmount: number
@@ -194,10 +167,6 @@ export const calculateMemberDiscount = async (
     return { discountPercent: config.discountPercent, discountAmount };
 };
 
-/**
- * Xác thực và trả về số tiền tương đương khi đổi điểm.
- * 1 điểm = 1 VND.
- */
 export const previewRedemption = async (
     userId: string,
     pointsToRedeem: number
@@ -230,12 +199,6 @@ export const previewRedemption = async (
     };
 };
 
-/**
- * Thực hiện đổi điểm (gọi khi Payment được tạo).
- * @returns Số điểm THỰC SỰ đã trừ — bằng `pointsToRedeem` nếu thành công, `0`
- *          nếu không đủ điểm / không hợp lệ. Caller PHẢI kiểm tra giá trị này
- *          để tránh ghi nhận giảm giá "ảo".
- */
 export const redeemPoints = async (
     userId: string,
     pointsToRedeem: number,
@@ -272,8 +235,6 @@ export const redeemPoints = async (
 
     return pointsToRedeem;
 };
-
-// ─── API Handlers ─────────────────────────────────────────────────────────────
 
 /** GET /loyalty/me — Thông tin thành viên của user hiện tại */
 export const getMyMemberInfo = async (

@@ -1,8 +1,6 @@
 import { Request, Response } from "express";
 import EventModel from "../models/event-model.mongo";
 
-// ─── Types ───────────────────────────────────────────────────────────────────
-
 type FilterOp =
     | "in"
     | "not_in"

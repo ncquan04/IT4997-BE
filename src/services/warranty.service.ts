@@ -9,7 +9,6 @@ import { notificationService } from "./notification.service";
 import { parsePositiveInt } from "../utils";
 import { UserRole } from "../shared/models/user-model";
 
-// ─── Walk-in customer ─────────────────────────────────────────────────────────
 // Tìm user theo SĐT; nếu chưa có → tạo mới với email ảo walkin_<phone>@store.local
 const getOrCreateWalkInCustomer = async (
     name: string,
@@ -36,7 +35,6 @@ type AuthenticatedRequest = Request & {
 const STATUS_WARRANTY = Contacts.Status.Warranty;
 const toObjectId = (id: string) => new mongoose.Types.ObjectId(id);
 
-// ─── State machine ────────────────────────────────────────────────────────────
 const ALLOWED_TRANSITIONS: Record<number, number[]> = {
     [STATUS_WARRANTY.RECEIVED]: [STATUS_WARRANTY.DIAGNOSING],
     [STATUS_WARRANTY.DIAGNOSING]: [
@@ -65,7 +63,6 @@ const STATUS_LABELS: Record<number, string> = {
     [STATUS_WARRANTY.RETURNED]: "Đã trả máy",
 };
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 const getBranchFilter = (req: any): string | undefined =>
     req.targetBranchId ?? (req.query.branchId as string | undefined);
 
@@ -77,7 +74,6 @@ const isBranchAllowed = (req: any, docBranchId: any): boolean => {
     return id?.toString() === target.toString();
 };
 
-// ─── Tiếp nhận bảo hành ──────────────────────────────────────────────────────
 export const createWarrantyRequest = async (
     req: AuthenticatedRequest,
     res: Response
@@ -172,7 +168,6 @@ export const createWarrantyRequest = async (
     }
 };
 
-// ─── Danh sách yêu cầu bảo hành ───────────────────────────────────────────────
 export const getWarrantyList = async (
     req: AuthenticatedRequest,
     res: Response
@@ -221,7 +216,6 @@ export const getWarrantyList = async (
     }
 };
 
-// ─── Danh sách bảo hành của user đang đăng nhập ──────────────────────────────
 export const getMyWarranties = async (
     req: AuthenticatedRequest,
     res: Response
@@ -268,7 +262,6 @@ export const getMyWarranties = async (
     }
 };
 
-// ─── Chi tiết yêu cầu bảo hành ────────────────────────────────────────────────
 export const getWarrantyById = async (
     req: AuthenticatedRequest,
     res: Response
@@ -300,7 +293,6 @@ export const getWarrantyById = async (
     }
 };
 
-// ─── Cập nhật trạng thái ──────────────────────────────────────────────────────
 export const updateWarrantyStatus = async (
     req: AuthenticatedRequest,
     res: Response
@@ -352,7 +344,6 @@ export const updateWarrantyStatus = async (
     }
 };
 
-// ─── Tra cứu lịch sử theo IMEI/Serial ────────────────────────────────────────
 export const lookupByImei = async (
     req: AuthenticatedRequest,
     res: Response
@@ -386,7 +377,6 @@ export const lookupByImei = async (
     }
 };
 
-// ─── Thêm nhật ký sửa chữa ────────────────────────────────────────────────────
 export const addRepairLog = async (
     req: AuthenticatedRequest,
     res: Response
@@ -434,7 +424,6 @@ export const addRepairLog = async (
     }
 };
 
-// ─── Lịch sử sửa chữa theo warranty request ───────────────────────────────────
 export const getRepairLogs = async (
     req: AuthenticatedRequest,
     res: Response
@@ -468,7 +457,6 @@ export const getRepairLogs = async (
     }
 };
 
-// ─── Lịch sử sửa chữa toàn bộ theo IMEI/Serial ──────────────────────────────
 export const repairLogHistory = async (
     req: AuthenticatedRequest,
     res: Response
@@ -512,7 +500,6 @@ export const repairLogHistory = async (
     }
 };
 
-// ─── Tra cứu lịch sử sửa chữa công khai theo IMEI (không cần auth) ───────────
 // Chỉ trả thông tin thao tác, KHÔNG lộ: tên KTV, chi phí, warrantyRequestId,
 // thông tin khách hàng.
 export const publicRepairHistory = async (req: Request, res: Response) => {
@@ -547,7 +534,6 @@ export const publicRepairHistory = async (req: Request, res: Response) => {
     }
 };
 
-// ─── Tra cứu thông tin thiết bị từ IMEI trong kho xuất ──────────────────────
 // Tìm StockExport chứa IMEI → trả về productId, variantId, branchId,
 // orderId và customerId (nếu là đơn online).
 export const imeiStockLookup = async (

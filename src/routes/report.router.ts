@@ -49,8 +49,6 @@ ReportRouter.get(
     getRefundReports
 );
 
-// ─── Financial Reports ───────────────────────────────────────────────────────
-
 const FINANCIAL_ROLES = [UserRole.ADMIN, UserRole.MANAGER];
 
 ReportRouter.get(

@@ -18,20 +18,6 @@ const STATUS_ORDER = Contacts.Status.Order;
 const PAYMENT_STATUS = Contacts.Status.Payment;
 const PAYMENT_METHOD = Contacts.PaymentMethod;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Branch consolidation for an order — shared by the cart (createOrderFromCart)
-// and buy-now (/orders/creator) flows.
-//
-// planBranchConsolidation is READ-ONLY: it picks a single fulfilment (main)
-// branch, computes the IMEIs that will ship from it (its own units + units to be
-// transferred in), and the per-source pieces to move. Throws NOT_ENOUGH_STOCK if
-// the active branches cannot satisfy the order.
-//
-// applyBranchConsolidation MUTATES (call AFTER the order exists, in the SAME
-// transaction): deducts each source branch (guarded so stock can't go negative),
-// credits mainBranch, and records a COMPLETED StockTransfer per source as the
-// audit trail. The order then ships from mainBranch alone.
-// ─────────────────────────────────────────────────────────────────────────────
 export interface ConsolidationPlan {
     mainBranchId: any;
     imeiAssignments: {
@@ -313,12 +299,6 @@ class OrderService {
         // Khởi tạo session để dùng MongoDB transaction
         const session = await mongoose.startSession();
         session.startTransaction();
-        /**
-         * Lấy danh sách sản phẩm trong giỏ hàng của user
-         * - Tìm theo userId
-         * - populate productId để lấy thông tin chi tiết sản phẩm
-         * - gắn session để đảm bảo transaction nhất quán
-         */
         try {
             // Lấy giỏ hàng và populate sản phẩm
             const cartItems: any = await CartModel.find({
@@ -625,12 +605,6 @@ class OrderService {
         return await OrderModel.aggregate(arg);
     }
 
-    /**
-     * [ADMIN] Lấy tất cả đơn hàng HỢP LỆ
-     * - Logic hợp lệ:
-     * + COD: Phải nằm trong các trạng thái cho phép (ORDERED, PROCESSING...)
-     * + Stripe: Bắt buộc Payment Status phải là PAID (Đã trả tiền)
-     */
     async getAllOrders(
         page: number = 1,
         limit: number = 10,
@@ -670,7 +644,6 @@ class OrderService {
                         preserveNullAndEmptyArrays: true, // Giữ lại đơn COD (thường chưa có record payment hoặc null)
                     },
                 },
-                // --- BỘ LỌC CHỐNG SPAM ---
                 {
                     $match: {
                         $or: [
@@ -865,7 +838,6 @@ class OrderService {
             : null;
 
         const pipeline: any[] = [
-            // 0️⃣ Filter by branch for non-admin staff
             ...(branchId
                 ? [
                       {
@@ -875,7 +847,6 @@ class OrderService {
                       },
                   ]
                 : []),
-            // 1️⃣ Join payment
             {
                 $lookup: {
                     from: "payments",
@@ -886,16 +857,12 @@ class OrderService {
             },
             { $unwind: "$payment" },
 
-            // 2️⃣ Filter payment status
             { $match: matchStage },
 
-            // 3️⃣ Search order info (optional)
             ...(searchStage ? [{ $match: searchStage }] : []),
 
-            // 4️⃣ Sort mới nhất trước
             { $sort: { "payment.createdAt": -1 } },
 
-            // 5️⃣ Facet để tách data & total
             {
                 $facet: {
                     data: [

@@ -9,7 +9,6 @@ import { AttendanceStatus } from "../shared/models/attendance-model";
 import { PayrollStatus } from "../shared/models/payroll-model";
 import { UserRole } from "../shared/models/user-model";
 
-// ─── Hằng số BH & Thuế TNCN (Việt Nam 2024-2026) ────────────────────────────
 /** Lương cơ sở 2024: 2.340.000 VNĐ → trần đóng BH = 20 × lương cơ sở */
 const INSURANCE_SALARY_CAP = 46_800_000; // 20 × 2.340.000
 const EMPLOYEE_INSURANCE_RATE = 0.105; // BHXH 8% + BHYT 1.5% + BHTN 1%
@@ -62,7 +61,6 @@ const STAFF_ROLES: UserRole[] = [
     UserRole.TECHNICIAN,
 ];
 
-// ─── Tạo / tính toán bảng lương tháng ────────────────────────────────────────
 export const generatePayroll = async (
     req: AuthenticatedRequest,
     res: Response
@@ -200,7 +198,6 @@ export const generatePayroll = async (
     return res.status(201).json(results);
 };
 
-// ─── Lấy danh sách bảng lương ─────────────────────────────────────────────────
 export const getPayrollList = async (
     req: AuthenticatedRequest,
     res: Response
@@ -236,7 +233,6 @@ export const getPayrollList = async (
     return res.json(records);
 };
 
-// ─── Cập nhật trạng thái (confirmed / paid) ──────────────────────────────────
 export const updatePayrollStatus = async (
     req: AuthenticatedRequest,
     res: Response
@@ -271,7 +267,6 @@ export const updatePayrollStatus = async (
     return res.json(payroll);
 };
 
-// ─── Xem bảng lương của bản thân ─────────────────────────────────────────────
 export const getMyPayroll = async (
     req: AuthenticatedRequest,
     res: Response
@@ -289,7 +284,6 @@ export const getMyPayroll = async (
     return res.json(records);
 };
 
-// ─── Xuất bảng lương ra Excel / CSV ──────────────────────────────────────────
 export const exportPayroll = async (
     req: AuthenticatedRequest,
     res: Response
@@ -315,7 +309,6 @@ export const exportPayroll = async (
 
     const filename = `payroll-${year}-${String(month).padStart(2, "0")}`;
 
-    // ── CSV ──────────────────────────────────────────────────────────────────
     if (format === "csv") {
         const headers = [
             "Nhân viên", "Email", "Vai trò",
@@ -356,7 +349,6 @@ export const exportPayroll = async (
         return res.end("\uFEFF" + csv);
     }
 
-    // ── Excel (excel4node) ────────────────────────────────────────────────────
     const wb = new xl.Workbook();
     const ws = wb.addWorksheet(`Payroll ${month}-${year}`);
 

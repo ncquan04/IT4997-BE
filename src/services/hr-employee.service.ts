@@ -16,7 +16,6 @@ const STAFF_ROLES: UserRole[] = [
     UserRole.TECHNICIAN,
 ];
 
-// ─── Danh sách nhân viên ─────────────────────────────────────────────────────
 export const getEmployees = async (
     req: AuthenticatedRequest,
     res: Response
@@ -51,7 +50,6 @@ export const getEmployees = async (
     return res.json(employees);
 };
 
-// ─── Chi tiết nhân viên ───────────────────────────────────────────────────────
 export const getEmployeeById = async (
     req: AuthenticatedRequest,
     res: Response
@@ -80,7 +78,6 @@ export const getEmployeeById = async (
     return res.json(employee);
 };
 
-// ─── Cập nhật thông tin nhân viên (role, branchId, baseSalary, isActive) ─────
 export const updateEmployee = async (
     req: AuthenticatedRequest,
     res: Response
@@ -138,7 +135,6 @@ export const updateEmployee = async (
     return res.json(updated);
 };
 
-// ─── Tạo nhân viên mới ───────────────────────────────────────────────────────
 export const createEmployee = async (
     req: AuthenticatedRequest,
     res: Response

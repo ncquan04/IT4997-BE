@@ -11,7 +11,6 @@ import discountProgramService from "../services/discount-program.service";
 
 const DiscountProgramRouter = express.Router();
 
-// ── Admin: list all programs ─────────────────────────────────────────────────
 DiscountProgramRouter.get(
     "/discount-programs",
     auth,
@@ -26,7 +25,6 @@ DiscountProgramRouter.get(
     }
 );
 
-// ── Admin: create program ────────────────────────────────────────────────────
 DiscountProgramRouter.post(
     "/discount-programs",
     auth,
@@ -44,7 +42,6 @@ DiscountProgramRouter.post(
     }
 );
 
-// ── Admin: update program ────────────────────────────────────────────────────
 DiscountProgramRouter.put(
     "/discount-programs/:id",
     auth,
@@ -66,7 +63,6 @@ DiscountProgramRouter.put(
     }
 );
 
-// ── Admin: delete program ────────────────────────────────────────────────────
 DiscountProgramRouter.delete(
     "/discount-programs/:id",
     auth,

@@ -1,9 +1,3 @@
-/**
- * Seed dữ liệu mặc định cho MemberTierConfig.
- * Chạy một lần: npx ts-node src/seed/member-tier-config.seed.ts
- *
- * Nếu document đã tồn tại thì upsert (không tạo trùng).
- */
 import connectDatabase from "../utils/connectDB";
 import MemberTierConfigModel from "../models/member-tier-config-model.mongo";
 import { MemberTier } from "../shared/models/member-tier-config-model";

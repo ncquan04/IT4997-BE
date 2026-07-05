@@ -8,7 +8,6 @@ import { couponService } from "../services/coupon.service";
 
 const CouponRouter = express.Router();
 
-// ── Admin: list all coupons ──────────────────────────────────────────────────
 CouponRouter.get(
     "/coupons",
     auth,
@@ -23,7 +22,6 @@ CouponRouter.get(
     }
 );
 
-// ── Admin: create coupon ─────────────────────────────────────────────────────
 CouponRouter.post(
     "/coupons",
     auth,
@@ -44,7 +42,6 @@ CouponRouter.post(
     }
 );
 
-// ── Admin: update coupon ─────────────────────────────────────────────────────
 CouponRouter.put(
     "/coupons/:id",
     auth,
@@ -66,7 +63,6 @@ CouponRouter.put(
     }
 );
 
-// ── Admin: delete coupon ─────────────────────────────────────────────────────
 CouponRouter.delete(
     "/coupons/:id",
     auth,
@@ -84,7 +80,6 @@ CouponRouter.delete(
     }
 );
 
-// ── User: validate coupon (does NOT consume it) ──────────────────────────────
 CouponRouter.post("/coupons/validate", auth, async (req, res) => {
     try {
         const { code, orderTotal, items } = req.body;

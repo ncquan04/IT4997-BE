@@ -40,7 +40,6 @@ async function insertBatch(
     return inserted;
 }
 
-// ─── Attendance generator ────────────────────────────────────────────────────
 function buildAttendanceRecords() {
     // [employeeId, branchId]
     const employees = [
@@ -176,7 +175,6 @@ function buildAttendanceRecords() {
     return records;
 }
 
-// ─── Order + Payment generator ───────────────────────────────────────────────
 function buildOrderRecords() {
     // Catalog: { productId, variantId, title, variantName, price, costPrice }
     const catalog = [
@@ -498,7 +496,6 @@ function buildOrderRecords() {
     return records;
 }
 
-// ─── Payroll generator (BH + Thuế TNCN Việt Nam 2024-2026) ──────────────────
 function buildPayrollRecords() {
     const INSURANCE_CAP = 46_800_000; // 20 × lương cơ sở 2.34tr
     const EMP_INS_RATE = 0.105; // NLĐ: BHXH 8% + BHYT 1.5% + BHTN 1%
