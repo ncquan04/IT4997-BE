@@ -131,7 +131,7 @@ export const trackEvents = async (req: Request, res: Response) => {
         const enriched = events.map((e: any) => ({
             anonymousId: String(e.anonymousId || ""),
             sessionId: String(e.sessionId || ""),
-            userId: e.userId || (req as any).user?._id?.toString() || null,
+            userId: e.userId || (req as any).user?.id?.toString() || null,
             eventName: String(e.eventName || ""),
             params: e.params || {},
             page: String(e.page || ""),
