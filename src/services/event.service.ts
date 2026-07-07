@@ -44,6 +44,7 @@ const ALLOWED_TOP_FIELDS = new Set<string>([
     "ip",
     "userId",
     "sessionId",
+    "anonymousId",
 ]);
 
 function resolveField(field: string): string {
@@ -319,11 +320,9 @@ export const queryFunnelTree = async (req: Request, res: Response) => {
             (n: TreeNodeDef) => n.parentId === null || n.parentId === undefined
         );
         if (roots.length !== 1) {
-            return res
-                .status(400)
-                .json({
-                    message: "Exactly one root node (parentId=null) required",
-                });
+            return res.status(400).json({
+                message: "Exactly one root node (parentId=null) required",
+            });
         }
 
         // Check all parentIds reference existing nodes
@@ -525,9 +524,11 @@ export const getParamKeys = async (req: Request, res: Response) => {
         }
 
         // Also include top-level queryable fields
-        const topFields = ["page", "referrer", "userId"];
         return res.json({
-            paramKeys: [...topFields, ...Array.from(keySet).sort()],
+            paramKeys: [
+                ...Array.from(ALLOWED_TOP_FIELDS),
+                ...Array.from(keySet).sort(),
+            ],
         });
     } catch (error: any) {
         console.error("getParamKeys error:", error);
